@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#06060F"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="SpineReset"/>
+  <title>SpineReset</title>
+  <link rel="manifest" href="manifest.json"/>
+  <style>
+    :root {
+      --bg:#06060F; --surface:#0D0D1E; --card:#11112A; --border:#1A1A35;
+      --gold:#C9A84C; --gold2:#E8C96A; --blue:#4A8FD4; --green:#3DAA6A;
+      --text:#EAE6DE; --muted:#5A6070; --dim:#2A2A45;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;width:100%;background:var(--bg);color:var(--text);
+      font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;
+      -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+
+    .screen{position:absolute;inset:0;display:flex;flex-direction:column;
+      transition:opacity .35s,transform .35s}
+    .screen.hidden{opacity:0;pointer-events:none;transform:translateY(18px)}
+
+    /* HOME */
+    #home{align-items:center;justify-content:center;padding:40px 28px;gap:0}
+    .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+      color:var(--gold);margin-bottom:12px;font-weight:600}
+    .home-title{font-size:36px;font-weight:800;line-height:1.1;
+      text-align:center;margin-bottom:6px}
+    .home-title .acc{color:var(--gold)}
+    .home-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:44px}
+    .mode-cards{width:100%;display:flex;flex-direction:column;gap:14px;margin-bottom:32px}
+    .mode-card{width:100%;background:var(--surface);border:1.5px solid var(--border);
+      border-radius:18px;padding:20px 22px;cursor:pointer;text-align:left;
+      transition:border-color .2s,transform .15s,box-shadow .2s;position:relative;overflow:hidden}
+    .mode-card:active{transform:scale(.97)}
+    .mode-card.s:active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+    .mode-card.st:active{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+    .mode-icon{font-size:30px;margin-bottom:10px;display:block}
+    .mode-name{font-size:19px;font-weight:700;margin-bottom:4px}
+    .mode-card.s .mode-name{color:var(--gold)}
+    .mode-card.st .mode-name{color:var(--blue)}
+    .mode-desc{font-size:12.5px;color:var(--muted);line-height:1.55}
+    .mode-badge{position:absolute;top:20px;right:20px;font-size:9px;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:6px}
+    .mode-card.s .mode-badge{background:#C9A84C22;color:var(--gold)}
+    .mode-card.st .mode-badge{background:#4A8FD422;color:var(--blue)}
+    .home-note{font-size:11px;color:var(--dim);text-align:center;line-height:1.65}
+
+    /* SESSION */
+    .prog-track{height:3px;background:var(--border);flex-shrink:0}
+    .prog-fill{height:100%;background:var(--gold);transition:width .6s ease;width:0}
+    .sess-head{display:flex;align-items:center;justify-content:space-between;
+      padding:14px 20px 10px;flex-shrink:0}
+    .btn-back{background:none;border:1px solid var(--border);border-radius:8px;
+      color:var(--muted);font-size:18px;width:36px;height:36px;
+      display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+    .btn-back:active{border-color:var(--gold);color:var(--gold)}
+    .sess-mode{font-size:10px;font-weight:700;letter-spacing:.15em;
+      text-transform:uppercase;color:var(--muted)}
+    .sess-count{font-size:11px;color:var(--muted);font-weight:600}
+
+    .ex-display{flex:1;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:8px 28px 16px;text-align:center}
+
+    .ex-circle{width:158px;height:158px;border-radius:50%;border:2px solid var(--border);
+      display:flex;align-items:center;justify-content:center;
+      margin-bottom:26px;position:relative;flex-shrink:0}
+    .ex-ring{position:absolute;inset:-5px;border-radius:50%;
+      border:3px solid transparent;border-top-color:var(--gold)}
+    .ex-ring.spin{animation:spin 3s linear infinite}
+    .ex-ring.pulse{border-color:var(--gold);animation:pulse 2s ease-in-out infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+
+    .ex-emoji{font-size:54px;line-height:1;transition:opacity .3s}
+    .ex-name{font-size:22px;font-weight:800;line-height:1.2;margin-bottom:8px;
+      min-height:54px;display:flex;align-items:center;transition:opacity .3s}
+    .ex-instr{font-size:15px;color:#C8C4BC;line-height:1.65;min-height:70px;
+      display:flex;align-items:center;justify-content:center;
+      max-width:310px;transition:opacity .3s}
+    .ex-instr.fade{opacity:0}
+
+    .rep-wrap{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:4px}
+    .rep-big{font-size:66px;font-weight:800;line-height:1;color:var(--gold);
+      font-variant-numeric:tabular-nums;transition:transform .12s,opacity .12s}
+    .rep-big.bump{transform:scale(1.18);opacity:.65}
+    .rep-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--muted);font-weight:600}
+
+    .set-dots{display:flex;gap:8px;margin-top:16px}
+    .sdot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .3s}
+    .sdot.done{background:var(--gold)}
+    .sdot.active{background:var(--gold2);transform:scale(1.35)}
+
+    .controls{padding:14px 28px 38px;display:flex;align-items:center;
+      justify-content:center;gap:22px;flex-shrink:0}
+    .btn-skip{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      color:var(--muted);font-size:13px;font-weight:600;padding:10px 20px;
+      cursor:pointer;transition:all .2s}
+    .btn-skip:active{border-color:var(--muted);color:var(--text)}
+    .btn-play{width:72px;height:72px;border-radius:50%;background:var(--gold);
+      border:none;color:#06060F;font-size:26px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:transform .15s;
+      animation:glow 3s ease-in-out infinite}
+    .btn-play.paused{background:var(--surface);color:var(--gold);
+      border:1.5px solid var(--gold);animation:none}
+    .btn-play:active{transform:scale(.91)}
+    @keyframes glow{0%,100%{box-shadow:0 0 0 0 #C9A84C44}
+      50%{box-shadow:0 0 0 14px #C9A84C00}}
+    .btn-music{background:var(--surface);border:1px solid var(--border);
+      border-radius:12px;color:var(--muted);font-size:18px;
+      width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:all .2s}
+    .btn-music.on{border-color:var(--blue);color:var(--blue)}
+    .btn-music:active{transform:scale(.9)}
+
+    /* DONE */
+    #done{align-items:center;justify-content:center;padding:40px 28px;text-align:center}
+    .done-icon{font-size:64px;margin-bottom:20px}
+    .done-title{font-size:28px;font-weight:800;color:var(--gold);margin-bottom:8px}
+    .done-sub{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:40px}
+    .btn-home{background:var(--gold);border:none;border-radius:14px;
+      color:#06060F;font-size:15px;font-weight:700;padding:16px 44px;
+      cursor:pointer;transition:opacity .2s}
+    .btn-home:active{opacity:.8}
+  </style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen" id="home">
+  <div class="eyebrow">SpineReset</div>
+  <h1 class="home-title">Your Daily<br><span class="acc">Recovery</span></h1>
+  <p class="home-sub">Voice-guided · Follow along · No equipment</p>
+  <div class="mode-cards">
+    <button class="mode-card s" onclick="startSession('stretch')">
+      <span class="mode-icon">🌿</span>
+      <div class="mode-name">Morning Stretch</div>
+      <div class="mode-desc">4 exercises · ~4 minutes<br>Right-side targeted release</div>
+      <div class="mode-badge">Daily</div>
+    </button>
+    <button class="mode-card st" onclick="startSession('strength')">
+      <span class="mode-icon">⚡</span>
+      <div class="mode-name">Strengthening</div>
+      <div class="mode-desc">3 exercises · ~5 minutes<br>Left side first, every set</div>
+      <div class="mode-badge">Every other day</div>
+    </button>
+  </div>
+  <p class="home-note">Put on headphones for the best experience.<br>Voice guides you through everything.</p>
+</div>
+
+<!-- SESSION -->
+<div class="screen hidden" id="session">
+  <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+  <div class="sess-head">
+    <button class="btn-back" onclick="goHome()">←</button>
+    <span class="sess-mode" id="sess-mode">Morning Stretch</span>
+    <span class="sess-count" id="sess-count">1 / 4</span>
+  </div>
+  <div class="ex-display">
+    <div class="ex-circle">
+      <div class="ex-ring" id="ex-ring"></div>
+      <div class="ex-emoji" id="ex-emoji">🌿</div>
+    </div>
+    <div class="ex-name" id="ex-name">Loading…</div>
+    <div class="ex-instr" id="ex-instr">Get ready</div>
+    <div class="rep-wrap" id="rep-wrap">
+      <div class="rep-big" id="rep-big">—</div>
+      <div class="rep-lbl" id="rep-lbl">reps</div>
+    </div>
+    <div class="set-dots" id="set-dots"></div>
+  </div>
+  <div class="controls">
+    <button class="btn-skip" onclick="skipExercise()">Skip →</button>
+    <button class="btn-play paused" id="btn-play" onclick="togglePause()">▶</button>
+    <button class="btn-music on" id="btn-music" onclick="toggleMusic()">♪</button>
+  </div>
+</div>
+
+<!-- DONE -->
+<div class="screen hidden" id="done">
+  <div class="done-icon">✦</div>
+  <div class="done-title">Session Complete</div>
+  <div class="done-sub" id="done-sub">Great work. Come back tomorrow.</div>
+  <button class="btn-home" onclick="goHome()">← Back to Home</button>
+</div>
+
+<script>
+// ════════════════════════════════════
+// DATA
+// ════════════════════════════════════
+const SESSIONS = {
+  stretch: {
+    label: 'Morning Stretch',
+    exercises: [
+      {
+        name:'Thread the Needle', emoji:'🧵', type:'reps', reps:5, sets:1,
+        intro:"Thread the Needle. This gently derotates your thoracic curve — especially important for your right side.",
+        setup:"Get on all fours. Hands under your shoulders, knees under your hips. Take a slow breath in.",
+        steps:[
+          "Raise your left arm up toward the ceiling. Feel your chest open.",
+          "Now slowly slide that arm under your body toward the right. Let your shoulder and ear come to rest on the floor.",
+          "Hold here and breathe. Feel the rotation through your upper back.",
+          "Slowly return. Good. That is one rep.",
+          "Now switch. When the right arm threads under — go a little deeper. Your right side is the tight side. Lean into it."
+        ],
+        repCue:"That's {n}. Switch sides. Right arm deeper.",
+        done:"Beautiful. Thread the Needle complete.",
+      },
+      {
+        name:"Child's Pose — Left", emoji:'🙏', type:'hold', holdSecs:30, sets:2,
+        intro:"Child's Pose with hands walked to the left. This stretches the compressed right side of your spine.",
+        setup:"Kneel down and sit your hips back toward your heels. Extend both arms forward on the floor.",
+        steps:[
+          "Walk both hands as far to the left as you can.",
+          "You should feel a stretch running down your right flank. Only the right side.",
+          "Breathe deeply. With every exhale, let yourself sink a little further.",
+          "Stay here. I'll count you down."
+        ],
+        setCue:"Good. Rest for a moment. One more hold to go.",
+        done:"Excellent. Child's Pose done.",
+      },
+      {
+        name:'Right Arm Side Bend', emoji:'🌊', type:'hold', holdSecs:30, sets:2,
+        intro:"Right Arm Side Bend. This lengthens the right lateral chain which is chronically short from your curve.",
+        setup:"Stand up. Feet shoulder-width apart. Roll your shoulders back.",
+        steps:[
+          "Raise your right arm straight overhead.",
+          "Now lean your entire body to the left. Hard.",
+          "Feel the deep stretch along your right ribs and lat. Left arm hangs naturally.",
+          "Hold here while I count you down."
+        ],
+        setCue:"Come up slowly. Good. Brief rest. One more.",
+        done:"Great. Side Bend done.",
+      },
+      {
+        name:'Cat-Cow', emoji:'🐈', type:'reps', reps:10, sets:1,
+        intro:"Cat-Cow. Ten slow reps. Think of moving one vertebra at a time. Slow is everything here.",
+        setup:"Back on all fours. Flat back to start.",
+        steps:[
+          "CAT. Exhale and arch your back up toward the ceiling. Chin tucked to chest. Feel your mid-back lengthen.",
+          "COW. Inhale, let your belly sag down toward the floor. Look gently ahead.",
+          "Keep alternating. Slow and fluid. Imagine your spine moving like a wave.",
+          "Let's go. I'll count."
+        ],
+        repCue:"That's {n}.",
+        done:"Perfect. Morning stretch complete. Your spine thanks you.",
+      },
+    ]
+  },
+  strength: {
+    label: 'Strengthening',
+    exercises: [
+      {
+        name:'Dead Bug', emoji:'🐛', type:'reps', reps:8, sets:3,
+        intro:"Dead Bug. Three sets of eight reps each side. Left side always first. This builds deep core stability without loading your spine.",
+        setup:"Lie on your back. Bend both knees to ninety degrees, feet off the floor. Arms pointing straight up to the ceiling.",
+        steps:[
+          "Press your lower back flat into the floor. This is your anchor. Keep it there the entire time.",
+          "Left side first. Slowly extend your left arm back overhead and your right leg straight out — at the same time.",
+          "Only go as far as your lower back stays flat. No arching. Bring it back.",
+          "Now switch — right arm back, left leg out. That is one full rep.",
+          "Slow and controlled. I'll count."
+        ],
+        repCue:"That's {n}.",
+        setCue:"Set complete. Rest fifteen seconds. Keep that lower back awareness when you come back.",
+        done:"Dead Bug done. Three sets complete.",
+      },
+      {
+        name:'Bird Dog', emoji:'🦅', type:'reps_hold', reps:8, holdSecs:2, sets:3,
+        intro:"Bird Dog. Three sets of eight. Left side first every set. Two second hold at the top — that's what makes this corrective.",
+        setup:"Back on all fours. Flat back. No sagging in the middle.",
+        steps:[
+          "Left side first. Extend your left arm directly forward and your right leg directly back — simultaneously.",
+          "Hips stay level. Don't let them rotate or drop to one side.",
+          "Hold for two full seconds at the top. Then lower slowly with control.",
+          "Then right arm, left leg. Two seconds. Return. That's one rep."
+        ],
+        repCue:"That's {n}. Hold.",
+        setCue:"Set done. Short rest. Hips level is the whole challenge — keep that focus.",
+        done:"Bird Dog complete. Nice work.",
+      },
+      {
+        name:'Left Side Plank', emoji:'🏋', type:'hold', holdSecs:20, sets:3,
+        intro:"Left Side Plank. Left side only — three holds of twenty seconds. This directly strengthens your elongated left side — the convex side of your curve.",
+        setup:"Lie on your left side. Left elbow directly below your left shoulder.",
+        steps:[
+          "Stack your feet or stagger one in front for balance.",
+          "Lift your hips off the floor. Your body should form a straight line from head to heel.",
+          "Right arm rests on your hip or reaches up.",
+          "Breathe normally throughout. Don't hold your breath.",
+          "I'll count you down."
+        ],
+        setCue:"Good. Rest. Two more holds.",
+        done:"Left Side Plank complete. That is your full strengthening session. Excellent work today.",
+      },
+    ]
+  }
+};
+
+// ════════════════════════════════════
+// AUDIO — AMBIENT MUSIC
+// ════════════════════════════════════
+let audioCtx=null, musicGain=null, musicOn=true;
+
+function initAudio(){
+  if(audioCtx) return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  musicGain=audioCtx.createGain();
+  musicGain.gain.value=musicOn?0.055:0;
+  musicGain.connect(audioCtx.destination);
+
+  // Gentle drone pads
+  [[110,.22],[146.83,.18],[164.81,.16],[220,.14]].forEach(([freq,vol],i)=>{
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    const lfo=audioCtx.createOscillator();
+    const lg=audioCtx.createGain();
+    osc.type='sine'; osc.frequency.value=freq;
+    lfo.type='sine'; lfo.frequency.value=0.07+i*0.025;
+    lg.gain.value=vol*0.4;
+    lfo.connect(lg); lg.connect(g.gain);
+    g.gain.value=vol;
+    osc.connect(g); g.connect(musicGain);
+    osc.start(); lfo.start();
+  });
+  scheduleBell();
+}
+
+function scheduleBell(){
+  if(!audioCtx) return;
+  const delay=9+Math.random()*14;
+  setTimeout(()=>{
+    if(!audioCtx) return;
+    const freqs=[523.25,659.25,783.99,1046.5];
+    const f=freqs[Math.floor(Math.random()*freqs.length)];
+    const osc=audioCtx.createOscillator();
+    const env=audioCtx.createGain();
+    osc.type='sine'; osc.frequency.value=f;
+    env.gain.setValueAtTime(0,audioCtx.currentTime);
+    env.gain.linearRampToValueAtTime(0.1,audioCtx.currentTime+0.02);
+    env.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+3.8);
+    osc.connect(env); env.connect(musicGain);
+    osc.start(); osc.stop(audioCtx.currentTime+3.8);
+    scheduleBell();
+  },delay*1000);
+}
+
+function toggleMusic(){
+  musicOn=!musicOn;
+  if(musicGain) musicGain.gain.linearRampToValueAtTime(
+    musicOn?0.055:0, audioCtx.currentTime+0.5);
+  document.getElementById('btn-music').classList.toggle('on',musicOn);
+}
+
+// ════════════════════════════════════
+// SPEECH
+// ════════════════════════════════════
+function speak(text,cb){
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=0.87; u.pitch=1.04; u.volume=1;
+  const voices=speechSynthesis.getVoices();
+  const v=voices.find(v=>
+    /Samantha|Karen|Moira|Google UK Female|Google US Female|Serena|Tessa/.test(v.name)
+  )||voices.find(v=>/en/.test(v.lang))||voices[0];
+  if(v) u.voice=v;
+  u.onend=u.onerror=()=>{ if(cb) cb(); };
+  speechSynthesis.speak(u);
+}
+
+// ════════════════════════════════════
+// SESSION STATE
+// ════════════════════════════════════
+let S=null; // session
+
+function startSession(mode){
+  initAudio();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  speechSynthesis.cancel();
+
+  S={ mode, data:SESSIONS[mode], exIdx:0, setIdx:0, repCount:0,
+      paused:false, iv:null };
+
+  document.getElementById('sess-mode').textContent=S.data.label;
+  showScreen('session');
+  updateProg();
+  setTimeout(beginEx,700);
+}
+
+function beginEx(){
+  if(!S||S.paused) return;
+  const ex=S.data.exercises[S.exIdx];
+  S.setIdx=0; S.repCount=0;
+  setExUI(ex);
+  updateProg();
+  renderSetDots(ex);
+  speak(ex.intro,()=>{
+    if(!S||S.paused) return;
+    speak(ex.setup,()=>{
+      if(!S||S.paused) return;
+      setTimeout(()=>beginSet(ex),600);
+    });
+  });
+}
+
+function beginSet(ex){
+  if(!S||S.paused) return;
+  S.repCount=0;
+  renderSetDots(ex);
+  readSteps(ex,0,()=>{
+    if(ex.type==='hold') runHold(ex);
+    else runReps(ex);
+  });
+}
+
+function readSteps(ex,i,done){
+  if(!S||S.paused) return;
+  if(i>=ex.steps.length){done();return;}
+  setInstr(ex.steps[i]);
+  speak(ex.steps[i],()=>{ if(S&&!S.paused) setTimeout(()=>readSteps(ex,i+1,done),300); });
+}
+
+// ── REPS ─────────────────────────────
+function runReps(ex){
+  if(!S||S.paused) return;
+  setInstr('Begin. Left side first.');
+  paceRep(ex);
+}
+
+function paceRep(ex){
+  if(!S||S.paused) return;
+  const iv=setInterval(()=>{
+    if(!S||S.paused){clearInterval(iv);return;}
+    S.repCount++;
+    bumpNum();
+    setNum(ex.reps-S.repCount,'reps remaining');
+
+    const cue=(ex.repCue||'That\'s {n}.').replace('{n}',ordinal(S.repCount));
+    if(S.repCount>=ex.reps){
+      clearInterval(iv);
+      speak(cue,()=>repsDone(ex));
+    }
+  },3400);
+  S.iv=iv;
+}
+
+// ── REPS + HOLD (Bird Dog) ────────────
+function runReps_hold(ex){
+  // same as runReps but each rep voice includes hold
+  if(!S||S.paused) return;
+  setInstr('Begin. Left arm, right leg. Hold 2 seconds.');
+  paceRepsHold(ex);
+}
+
+function paceRepsHold(ex){
+  if(!S||S.paused) return;
+  doRepHold(ex);
+}
+
+function doRepHold(ex){
+  if(!S||S.paused) return;
+  speak('Extend and hold.',()=>{
+    if(!S||S.paused) return;
+    countdown(2,()=>{
+      if(!S||S.paused) return;
+      S.repCount++;
+      bumpNum();
+      setNum(ex.reps-S.repCount,'reps remaining');
+      const cue=(ex.repCue||'That\'s {n}.').replace('{n}',ordinal(S.repCount));
+      if(S.repCount>=ex.reps){
+        speak(cue,()=>repsDone(ex));
+      } else {
+        speak(cue,()=>{ if(S&&!S.paused) doRepHold(ex); });
+      }
+    });
+  });
+}
+
+function repsDone(ex){
+  if(!S) return;
+  if(S.iv) clearInterval(S.iv);
+  S.setIdx++;
+  if(S.setIdx<(ex.sets||1)){
+    speak(ex.setCue||'Good. Rest briefly.',()=>{
+      if(S&&!S.paused) setTimeout(()=>beginSet(ex),2200);
+    });
+  } else {
+    speak(ex.done||'Exercise complete.',()=>setTimeout(nextEx,1200));
+  }
+}
+
+// ── HOLD ─────────────────────────────
+function runHold(ex){
+  if(!S||S.paused) return;
+  document.getElementById('ex-ring').className='ex-ring pulse';
+  setNum(ex.holdSecs,'seconds');
+  speak('Begin your hold.',()=>{
+    if(S&&!S.paused) countdown(ex.holdSecs,()=>holdDone(ex));
+  });
+}
+
+function countdown(secs,done){
+  if(!S||S.paused) return;
+  let t=secs;
+  setNum(t,'seconds');
+  const iv=setInterval(()=>{
+    if(!S||S.paused){clearInterval(iv);return;}
+    t--;
+    setNum(t,'seconds');
+    bumpNum();
+    if(t===15||t===10||t===5) speak(t+' seconds.',null);
+    if(t<=0){
+      clearInterval(iv);
+      speak('And release.',done);
+    }
+  },1000);
+  S.iv=iv;
+}
+
+function holdDone(ex){
+  if(!S) return;
+  document.getElementById('ex-ring').className='ex-ring spin';
+  S.setIdx++;
+  if(S.setIdx<(ex.sets||1)){
+    speak(ex.setCue||'Good. Rest briefly.',()=>{
+      if(S&&!S.paused) setTimeout(()=>{
+        setInstr(ex.steps[0]);
+        runHold(ex);
+      },2800);
+    });
+  } else {
+    speak(ex.done||'Exercise complete.',()=>setTimeout(nextEx,1200));
+  }
+}
+
+// ── SEQUENCE ──────────────────────────
+function nextEx(){
+  if(!S) return;
+  S.exIdx++;
+  if(S.exIdx>=S.data.exercises.length){ finishSession(); return; }
+  const ex=S.data.exercises[S.exIdx];
+  speak('Next up. '+ex.name+'.',()=>{
+    if(!S) return;
+    setTimeout(()=>{ setExUI(ex); updateProg(); setTimeout(()=>beginEx(),500); },400);
+  });
+}
+
+function finishSession(){
+  const stretch=S.mode==='stretch';
+  speak(stretch
+    ?'Morning stretch complete. Excellent work. See you tomorrow.'
+    :'Strengthening session complete. Well done. Rest up and come back in two days.',
+    ()=>{});
+  document.getElementById('done-sub').textContent=stretch
+    ?'Great work. Come back tomorrow\nfor your next session.'
+    :'Rest day tomorrow.\nStrengthening again in 2 days.';
+  setTimeout(()=>showScreen('done'),1600);
+}
+
+// ════════════════════════════════════
+// CONTROLS
+// ════════════════════════════════════
+function togglePause(){
+  if(!S) return;
+  if(!S.paused){
+    S.paused=true;
+    speechSynthesis.cancel();
+    if(S.iv) clearInterval(S.iv);
+    document.getElementById('btn-play').textContent='▶';
+    document.getElementById('btn-play').classList.add('paused');
+    document.getElementById('ex-ring').className='ex-ring';
+    setInstr('Paused. Tap play to continue.');
+  } else {
+    S.paused=false;
+    document.getElementById('btn-play').textContent='⏸';
+    document.getElementById('btn-play').classList.remove('paused');
+    const ex=S.data.exercises[S.exIdx];
+    speak('Resuming.',()=>{
+      if(!S||S.paused) return;
+      if(ex.type==='hold') runHold(ex);
+      else if(ex.type==='reps_hold') runReps_hold(ex);
+      else runReps(ex);
+    });
+  }
+}
+
+function skipExercise(){
+  if(!S) return;
+  speechSynthesis.cancel();
+  if(S.iv) clearInterval(S.iv);
+  nextEx();
+}
+
+function goHome(){
+  speechSynthesis.cancel();
+  if(S&&S.iv) clearInterval(S.iv);
+  S=null;
+  showScreen('home');
+}
+
+// ════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════
+function showScreen(id){
+  ['home','session','done'].forEach(s=>{
+    document.getElementById(s).classList.toggle('hidden',s!==id);
+  });
+}
+
+function setExUI(ex){
+  document.getElementById('ex-emoji').textContent=ex.emoji;
+  document.getElementById('ex-name').textContent=ex.name;
+  document.getElementById('ex-instr').textContent='';
+  document.getElementById('ex-ring').className='ex-ring spin';
+  document.getElementById('btn-play').textContent='⏸';
+  document.getElementById('btn-play').classList.remove('paused');
+  document.getElementById('sess-count').textContent=
+    (S.exIdx+1)+' / '+S.data.exercises.length;
+  const initReps=ex.type==='hold'?ex.holdSecs:ex.reps;
+  const initLbl=ex.type==='hold'?'seconds':'reps';
+  setNum(initReps,initLbl);
+}
+
+function setInstr(txt){
+  const el=document.getElementById('ex-instr');
+  el.classList.add('fade');
+  setTimeout(()=>{ el.textContent=txt; el.classList.remove('fade'); },200);
+}
+
+function setNum(val,lbl){
+  document.getElementById('rep-wrap').style.display='flex';
+  document.getElementById('rep-big').textContent=val;
+  document.getElementById('rep-lbl').textContent=lbl;
+}
+
+function bumpNum(){
+  const el=document.getElementById('rep-big');
+  el.classList.add('bump');
+  setTimeout(()=>el.classList.remove('bump'),140);
+}
+
+function renderSetDots(ex){
+  const c=document.getElementById('set-dots');
+  const total=ex.sets||1;
+  if(total<=1){c.innerHTML='';return;}
+  c.innerHTML='';
+  for(let i=0;i<total;i++){
+    const d=document.createElement('div');
+    d.className='sdot '+(i<S.setIdx?'done':i===S.setIdx?'active':'');
+    c.appendChild(d);
+  }
+}
+
+function updateProg(){
+  if(!S) return;
+  const pct=(S.exIdx/S.data.exercises.length)*100;
+  document.getElementById('prog-fill').style.width=pct+'%';
+}
+
+function ordinal(n){
+  const s=['th','st','nd','rd'],v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+
+// ── Handle reps_hold type routing
+const _origBeginSet=beginSet;
+// Override beginSet to route correctly
+// (already handled above via ex.type check)
+
+// ════════════════════════════════════
+// SERVICE WORKER + VOICES
+// ════════════════════════════════════
+if('serviceWorker' in navigator)
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+speechSynthesis.getVoices();
+window.speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+</script>
+</body>
+</html>
