@@ -371,6 +371,7 @@ let S = {
   phase: 'idle', // idle | active | resting | complete
   timerSec: 0, timerMax: 0,
   interval: null, restInterval: null,
+  guidedRunning: false, guidedTimeout: null,
   startTime: null, doneSets: 0, doneExercises: 0,
   selectedVoice: null, voiceRate: 0.9, voicePitch: 1.0, beepVolume: 0.6,
   audioMode: 'voice',
@@ -408,6 +409,81 @@ function countdownBeep(n) {
 
 function doneBeep() {
   beep(1047, 0.15); setTimeout(() => beep(1319, 0.15), 150); setTimeout(() => beep(1568, 0.25), 300);
+}
+
+// ── Guided breath/rep counter ──────────────────────────────────────────────────
+// Speaks each rep number, waits phaseSec between each, then calls onComplete.
+// For breathing: inhale/exhale phrased cues. For reps: just the number.
+function startGuidedBreathing(reps, inhaleSec, exhaleSec, onComplete) {
+  stopGuided();
+  S.guidedRunning = true;
+
+  const totalSec = reps * (inhaleSec + exhaleSec);
+  // Show a counting timer in the ring
+  let elapsed = 0;
+  $('timer-unit').textContent = 'SEC';
+  $('done-btn').disabled = true;
+  setRing(1);
+
+  let rep = 0;
+  function nextRep() {
+    if (!S.guidedRunning) return;
+    rep++;
+    if (rep > reps) {
+      stopGuided();
+      $('done-btn').disabled = false;
+      onComplete && onComplete();
+      return;
+    }
+    $('timer-num').textContent = rep;
+    setRing(1 - (rep - 1) / reps);
+    if (S.audioMode === 'voice') {
+      speak(`${rep}. In`);
+    } else {
+      beep(440, 0.1);
+    }
+    // inhale phase
+    S.guidedTimeout = setTimeout(() => {
+      if (!S.guidedRunning) return;
+      if (S.audioMode === 'voice') speak('Out');
+      else beep(330, 0.1, 'sine');
+      // exhale phase
+      S.guidedTimeout = setTimeout(nextRep, exhaleSec * 1000);
+    }, inhaleSec * 1000);
+  }
+  nextRep();
+}
+
+function startGuidedReps(reps, secPerRep, onComplete) {
+  stopGuided();
+  S.guidedRunning = true;
+
+  $('timer-unit').textContent = 'REPS';
+  $('done-btn').disabled = true;
+  setRing(1);
+
+  let rep = 0;
+  function nextRep() {
+    if (!S.guidedRunning) return;
+    rep++;
+    if (rep > reps) {
+      stopGuided();
+      $('done-btn').disabled = false;
+      onComplete && onComplete();
+      return;
+    }
+    $('timer-num').textContent = rep;
+    setRing(1 - (rep - 1) / reps);
+    if (S.audioMode === 'voice') speak(String(rep));
+    else beep(440 + rep * 20, 0.08);
+    S.guidedTimeout = setTimeout(nextRep, secPerRep * 1000);
+  }
+  nextRep();
+}
+
+function stopGuided() {
+  S.guidedRunning = false;
+  if (S.guidedTimeout) { clearTimeout(S.guidedTimeout); S.guidedTimeout = null; }
 }
 
 // ── Voice ──────────────────────────────────────────────────────────────────────
@@ -477,6 +553,7 @@ function setRing(frac) {
 function clearTimers() {
   if (S.interval)     { clearInterval(S.interval);     S.interval = null; }
   if (S.restInterval) { clearInterval(S.restInterval); S.restInterval = null; }
+  stopGuided();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
@@ -596,7 +673,17 @@ async function announceAndRenderStep() {
   // Auto-start timed exercises
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
-  if (timeSec && !perSide) {
+
+  // Special warmup guided flows
+  if (step.type === 'warmup' && ex.id === 'wA') {
+    // Diaphragmatic Breathing: 10 breaths, 4s inhale, 6s exhale
+    if (S.audioMode === 'voice') await speakPromise('Begin. Breathe in through your nose.', false);
+    startGuidedBreathing(10, 4, 6, () => onTimerDone());
+  } else if (step.type === 'warmup' && ex.id === 'wC') {
+    // Thoracic Cat-Cow: 10 cycles, ~4s each
+    if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow.', false);
+    startGuidedReps(10, 4, () => onTimerDone());
+  } else if (timeSec && !perSide) {
     startCountdown(timeSec, () => onTimerDone());
   } else if (perSide) {
     startSideTimer(ex.sideSec || 30);
@@ -662,12 +749,23 @@ function renderStep(step) {
   } else {
     doneBtn.className = 'done-btn done-gold';
   }
-  doneBtn.textContent = (isWarmup && !ex.timeSec && !ex.perSide) ? 'DONE' : 'DONE SET';
+  const isGuidedWarmup = isWarmup && (ex.id === 'wA' || ex.id === 'wC');
+  doneBtn.textContent = (isWarmup && !ex.timeSec && !ex.perSide && !isGuidedWarmup) ? 'DONE' : 'DONE SET';
 
   // Timer display — show static label only; actual timers started by announceAndRenderStep
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
-  if (timeSec || perSide) {
+  const isGuidedBreath = step.type === 'warmup' && ex.id === 'wA';
+  const isGuidedRep    = step.type === 'warmup' && ex.id === 'wC';
+  if (isGuidedBreath) {
+    setRing(1);
+    $('timer-num').textContent = '1';
+    $('timer-unit').textContent = 'OF 10';
+  } else if (isGuidedRep) {
+    setRing(1);
+    $('timer-num').textContent = '1';
+    $('timer-unit').textContent = 'OF 10';
+  } else if (timeSec || perSide) {
     setRing(1);
     $('timer-num').textContent = timeSec || (ex.sideSec || 30);
     $('timer-unit').textContent = 'SEC';
@@ -755,7 +853,13 @@ function startCountdown(sec, onComplete) {
     $('timer-num').textContent = S.timerSec;
     setRing(S.timerSec / S.timerMax);
 
-    // Last-5 countdown beep every mode
+    // Mid-timer cues at 10s intervals (only when >10s total)
+    if (S.timerMax > 10 && S.timerSec > 5 && S.timerSec % 10 === 0) {
+      if (S.audioMode === 'voice') speak(`${S.timerSec} seconds`);
+      else beep(660, 0.1, 'sine');
+    }
+
+    // Last-5 countdown
     if (S.timerSec > 0 && S.timerSec <= 5) {
       countdownBeep(S.timerSec);
       if (S.audioMode === 'voice') speak(String(S.timerSec));
