@@ -343,15 +343,15 @@ const EXDB = {
 const WARMUP = [
   { id: 'wA', name: 'Diaphragmatic Breathing', sub: '+ Posterior Pelvic Tilt',
     muscles: 'Diaphragm · pelvic floor',
-    repsLabel: '10 breaths', restSec: 0,
+    sets: 1, repsLabel: '10 breaths', restSec: 0,
     cue: '4 seconds IN, 6–8 seconds OUT. Belly expands, back stays flat. Tailbone tucked (posterior pelvic tilt).' },
   { id: 'wB', name: 'Chin Tucks', sub: '',
     muscles: 'Deep neck flexors',
-    repsLabel: '10 reps × 3s hold', timeSec: 30, restSec: 0,
+    sets: 1, repsLabel: '10 reps × 3s hold', timeSec: 30, restSec: 0,
     cue: 'Slide head straight back — no tilting. 3-second hold each rep. Like pushing your head through a wall.' },
   { id: 'wC', name: 'Thoracic Cat-Cow', sub: '',
     muscles: 'Thoracic extensors · multifidus',
-    repsLabel: '10 cycles', restSec: 0,
+    sets: 1, repsLabel: '10 cycles', restSec: 0,
     cue: 'ONLY mid-back moves. Neck and lower back stay completely still throughout.' },
 ];
 
@@ -598,9 +598,8 @@ async function announceAndRenderStep() {
   }
 }
 
-// ─── Render Step (UI only — no timers) ────────────────────────────────────────
+// ─── Render Step (UI only — no timers, no button state changes) ───────────────
 function renderStep(step) {
-  clearTimers();
   $('session').classList.remove('resting', 'right-active');
   $('done-btn').disabled = false;
 
@@ -660,14 +659,13 @@ function renderStep(step) {
   }
   doneBtn.textContent = (isWarmup && !ex.timeSec && !ex.perSide) ? 'DONE' : 'DONE SET';
 
-  // Timer display — show static label for manual exercises; timers started in announceAndRenderStep
+  // Timer display — show static label only; actual timers started by announceAndRenderStep
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
   if (timeSec || perSide) {
     setRing(1);
     $('timer-num').textContent = timeSec || (ex.sideSec || 30);
     $('timer-unit').textContent = 'SEC';
-    $('done-btn').disabled = true; // will be enabled when timer ends
   } else {
     setRing(0);
     $('timer-num').textContent = firstNum(ex.repsLabel);
@@ -819,11 +817,9 @@ function startRestTimer(sec) {
     $('timer-num').textContent = S.timerSec;
     setRing(S.timerSec / total);
 
-    if (S.audioMode === 'voice') {
-      if ([30, 20, 10].includes(S.timerSec)) speak(`${S.timerSec} seconds`);
-      else if (S.timerSec > 0 && S.timerSec <= 5) speak(String(S.timerSec));
-    } else {
-      if ([10, 5, 4, 3, 2, 1].includes(S.timerSec)) beep(S.timerSec <= 5 ? 550 : 440, 0.08);
+    if (S.timerSec > 0 && S.timerSec <= 5) {
+      countdownBeep(S.timerSec);
+      if (S.audioMode === 'voice') speak(String(S.timerSec));
     }
 
     if (S.timerSec <= 0) {
