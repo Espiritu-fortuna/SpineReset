@@ -1,686 +1,912 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <meta name="theme-color" content="#06060F"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="SpineReset"/>
-  <title>SpineReset</title>
-  <link rel="manifest" href="manifest.json"/>
-  <style>
-    :root {
-      --bg:#06060F; --surface:#0D0D1E; --card:#11112A; --border:#1A1A35;
-      --gold:#C9A84C; --gold2:#E8C96A; --blue:#4A8FD4; --green:#3DAA6A;
-      --text:#EAE6DE; --muted:#5A6070; --dim:#2A2A45;
-    }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;width:100%;background:var(--bg);color:var(--text);
-      font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;
-      -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>SpineReset</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SpineReset"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --gold: #D4AF37;
+  --gold-dim: rgba(212,175,55,0.14);
+  --gold-border: rgba(212,175,55,0.26);
+  --purple: #A855F7;
+  --purple-dim: rgba(168,85,247,0.14);
+  --purple-border: rgba(168,85,247,0.30);
+  --bg: #0a0a0a;
+  --surface: #131313;
+  --surface2: #1c1c1c;
+  --text: #f0ede8;
+  --muted: #666;
+  --danger: #e53935;
+  --font-d: 'Bebas Neue', sans-serif;
+  --font-b: 'Barlow', sans-serif;
+  --font-c: 'Barlow Condensed', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:hidden;-webkit-tap-highlight-color:transparent}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;background:var(--bg)}
 
-    .screen{position:absolute;inset:0;display:flex;flex-direction:column;
-      transition:opacity .35s,transform .35s}
-    .screen.hidden{opacity:0;pointer-events:none;transform:translateY(18px)}
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--gold-border);flex-shrink:0}
+.logo{font-family:var(--font-d);font-size:20px;letter-spacing:3px;color:var(--gold)}
+#week-badge{font-family:var(--font-c);font-size:11px;letter-spacing:2px;color:var(--muted);background:var(--surface);border:1px solid rgba(255,255,255,.07);padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none}
+#week-badge:active{opacity:.7}
 
-    /* HOME */
-    #home{align-items:center;justify-content:center;padding:40px 28px;gap:0}
-    .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-      color:var(--gold);margin-bottom:12px;font-weight:600}
-    .home-title{font-size:36px;font-weight:800;line-height:1.1;
-      text-align:center;margin-bottom:6px}
-    .home-title .acc{color:var(--gold)}
-    .home-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:44px}
-    .mode-cards{width:100%;display:flex;flex-direction:column;gap:14px;margin-bottom:32px}
-    .mode-card{width:100%;background:var(--surface);border:1.5px solid var(--border);
-      border-radius:18px;padding:20px 22px;cursor:pointer;text-align:left;
-      transition:border-color .2s,transform .15s,box-shadow .2s;position:relative;overflow:hidden}
-    .mode-card:active{transform:scale(.97)}
-    .mode-card.s:active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
-    .mode-card.st:active{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
-    .mode-icon{font-size:30px;margin-bottom:10px;display:block}
-    .mode-name{font-size:19px;font-weight:700;margin-bottom:4px}
-    .mode-card.s .mode-name{color:var(--gold)}
-    .mode-card.st .mode-name{color:var(--blue)}
-    .mode-desc{font-size:12.5px;color:var(--muted);line-height:1.55}
-    .mode-badge{position:absolute;top:20px;right:20px;font-size:9px;font-weight:700;
-      letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:6px}
-    .mode-card.s .mode-badge{background:#C9A84C22;color:var(--gold)}
-    .mode-card.st .mode-badge{background:#4A8FD422;color:var(--blue)}
-    .home-note{font-size:11px;color:var(--dim);text-align:center;line-height:1.65}
+/* VIEWS */
+#views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;display:flex;flex-direction:column;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .22s}
+.view.active{opacity:1;pointer-events:all}
 
-    /* SESSION */
-    .prog-track{height:3px;background:var(--border);flex-shrink:0}
-    .prog-fill{height:100%;background:var(--gold);transition:width .6s ease;width:0}
-    .sess-head{display:flex;align-items:center;justify-content:space-between;
-      padding:14px 20px 10px;flex-shrink:0}
-    .btn-back{background:none;border:1px solid var(--border);border-radius:8px;
-      color:var(--muted);font-size:18px;width:36px;height:36px;
-      display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
-    .btn-back:active{border-color:var(--gold);color:var(--gold)}
-    .sess-mode{font-size:10px;font-weight:700;letter-spacing:.15em;
-      text-transform:uppercase;color:var(--muted)}
-    .sess-count{font-size:11px;color:var(--muted);font-weight:600}
+/* ─── HOME ─── */
+#home{padding:20px;gap:14px}
+.home-title{font-family:var(--font-d);font-size:44px;letter-spacing:3px;color:var(--gold);line-height:1}
+.home-sub{font-family:var(--font-c);font-size:12px;letter-spacing:2px;color:var(--muted)}
+.day-grid{display:flex;flex-direction:column;gap:8px}
+.day-card{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:13px 16px;cursor:pointer;transition:border-color .18s,background .18s;display:flex;align-items:center;gap:14px}
+.day-card.selected{border-color:var(--gold);background:var(--gold-dim)}
+.day-card:active{opacity:.8}
+.day-num{font-family:var(--font-d);font-size:30px;color:var(--muted);min-width:32px;line-height:1}
+.day-card.selected .day-num{color:var(--gold)}
+.day-label{font-family:var(--font-c);font-size:10px;letter-spacing:2px;color:var(--muted)}
+.day-title{font-family:var(--font-c);font-size:14px;font-weight:600;letter-spacing:.5px;color:var(--text)}
+.day-card.selected .day-title{color:var(--gold)}
+.start-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px;background:var(--gold);color:var(--bg);border:none;border-radius:14px;font-family:var(--font-d);font-size:22px;letter-spacing:3px;cursor:pointer;box-shadow:0 4px 24px rgba(212,175,55,.3);transition:transform .15s,box-shadow .15s;margin-top:4px;flex-shrink:0}
+.start-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(212,175,55,.15)}
 
-    .ex-display{flex:1;display:flex;flex-direction:column;align-items:center;
-      justify-content:center;padding:8px 28px 16px;text-align:center}
+/* ─── SESSION ─── */
+#session{padding:12px 20px 16px;gap:0}
+.phase-badge{font-family:var(--font-c);font-size:11px;letter-spacing:2.5px;padding:3px 0 5px;flex-shrink:0;transition:color .25s}
+.badge-warmup{color:var(--muted)}
+.badge-bilateral{color:var(--gold)}
+.badge-right{color:var(--purple)}
+.badge-rest{color:var(--muted)}
+.badge-locked{color:var(--muted)}
 
-    .ex-circle{width:158px;height:158px;border-radius:50%;border:2px solid var(--border);
-      display:flex;align-items:center;justify-content:center;
-      margin-bottom:26px;position:relative;flex-shrink:0}
-    .ex-ring{position:absolute;inset:-5px;border-radius:50%;
-      border:3px solid transparent;border-top-color:var(--gold)}
-    .ex-ring.spin{animation:spin 3s linear infinite}
-    .ex-ring.pulse{border-color:var(--gold);animation:pulse 2s ease-in-out infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes pulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+.ex-name{font-family:var(--font-d);font-size:clamp(24px,7vw,34px);letter-spacing:2px;line-height:1.1;flex-shrink:0;margin-bottom:2px;transition:color .25s}
+.name-standard{color:var(--text)}
+.name-right{color:var(--purple)}
+.name-rest{color:var(--muted)}
 
-    .ex-emoji{font-size:54px;line-height:1;transition:opacity .3s}
-    .ex-name{font-size:22px;font-weight:800;line-height:1.2;margin-bottom:8px;
-      min-height:54px;display:flex;align-items:center;transition:opacity .3s}
-    .ex-instr{font-size:15px;color:#C8C4BC;line-height:1.65;min-height:70px;
-      display:flex;align-items:center;justify-content:center;
-      max-width:310px;transition:opacity .3s}
-    .ex-instr.fade{opacity:0}
+.ex-muscles{font-family:var(--font-c);font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;flex-shrink:0}
 
-    .rep-wrap{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:4px}
-    .rep-big{font-size:66px;font-weight:800;line-height:1;color:var(--gold);
-      font-variant-numeric:tabular-nums;transition:transform .12s,opacity .12s}
-    .rep-big.bump{transform:scale(1.18);opacity:.65}
-    .rep-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;
-      color:var(--muted);font-weight:600}
+.cue-card{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 14px;margin-bottom:8px;flex-shrink:0;transition:border-color .25s,background .25s}
+.cue-card.cue-right{border-color:var(--purple-border);background:var(--purple-dim)}
+.cue-text{font-size:12px;color:var(--muted);line-height:1.65;font-family:var(--font-b)}
+.cue-card.cue-right .cue-text{color:var(--text)}
 
-    .set-dots{display:flex;gap:8px;margin-top:16px}
-    .sdot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .3s}
-    .sdot.done{background:var(--gold)}
-    .sdot.active{background:var(--gold2);transform:scale(1.35)}
+/* set dots */
+.set-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0;min-height:22px}
+.set-dot{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,.18);flex-shrink:0;transition:all .22s}
+.dot-done{background:var(--gold);border-color:var(--gold)}
+.dot-current{border-color:var(--gold);box-shadow:0 0 7px rgba(212,175,55,.6)}
+.dot-right-done{background:var(--purple);border-color:var(--purple)}
+.dot-right-current{border-color:var(--purple);box-shadow:0 0 7px rgba(168,85,247,.6)}
+.set-label{font-family:var(--font-c);font-size:11px;color:var(--muted);letter-spacing:1px;margin-left:4px}
 
-    .controls{padding:14px 28px 38px;display:flex;align-items:center;
-      justify-content:center;gap:22px;flex-shrink:0}
-    .btn-skip{background:var(--surface);border:1px solid var(--border);border-radius:12px;
-      color:var(--muted);font-size:13px;font-weight:600;padding:10px 20px;
-      cursor:pointer;transition:all .2s}
-    .btn-skip:active{border-color:var(--muted);color:var(--text)}
-    .btn-play{width:72px;height:72px;border-radius:50%;background:var(--gold);
-      border:none;color:#06060F;font-size:26px;
-      display:flex;align-items:center;justify-content:center;
-      cursor:pointer;transition:transform .15s;
-      animation:glow 3s ease-in-out infinite}
-    .btn-play.paused{background:var(--surface);color:var(--gold);
-      border:1.5px solid var(--gold);animation:none}
-    .btn-play:active{transform:scale(.91)}
-    @keyframes glow{0%,100%{box-shadow:0 0 0 0 #C9A84C44}
-      50%{box-shadow:0 0 0 14px #C9A84C00}}
-    .btn-music{background:var(--surface);border:1px solid var(--border);
-      border-radius:12px;color:var(--muted);font-size:18px;
-      width:44px;height:44px;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;transition:all .2s}
-    .btn-music.on{border-color:var(--blue);color:var(--blue)}
-    .btn-music:active{transform:scale(.9)}
+/* timer area */
+.timer-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;position:relative}
+.timer-ring{width:min(196px,54vw);height:min(196px,54vw)}
+.timer-ring circle{fill:none;stroke-width:7}
+.ring-bg{stroke:rgba(255,255,255,.05)}
+.ring-arc{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset .6s linear,stroke .25s}
+#session.right-active .ring-arc{stroke:var(--purple)}
+.timer-center{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.timer-num{font-family:var(--font-d);font-size:clamp(50px,14vw,70px);line-height:1;color:var(--text);letter-spacing:2px}
+.timer-unit{font-family:var(--font-c);font-size:11px;color:var(--muted);letter-spacing:1.5px}
+#session.resting .timer-num{color:var(--gold)}
 
-    /* DONE */
-    #done{align-items:center;justify-content:center;padding:40px 28px;text-align:center}
-    .done-icon{font-size:64px;margin-bottom:20px}
-    .done-title{font-size:28px;font-weight:800;color:var(--gold);margin-bottom:8px}
-    .done-sub{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:40px}
-    .btn-home{background:var(--gold);border:none;border-radius:14px;
-      color:#06060F;font-size:15px;font-weight:700;padding:16px 44px;
-      cursor:pointer;transition:opacity .2s}
-    .btn-home:active{opacity:.8}
-  </style>
+/* done btn */
+.done-btn{width:100%;padding:18px;border:none;border-radius:14px;font-family:var(--font-d);font-size:21px;letter-spacing:3px;cursor:pointer;transition:transform .14s,opacity .14s;flex-shrink:0;margin-top:6px}
+.done-btn:active{transform:scale(.97)}
+.done-gold{background:var(--gold);color:var(--bg)}
+.done-purple{background:var(--purple);color:#fff}
+.done-ghost{background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+.done-btn:disabled{opacity:.35;cursor:default;transform:none}
+
+/* skip */
+.skip-btn{align-self:flex-end;background:none;border:1px solid rgba(255,255,255,.1);color:var(--muted);font-family:var(--font-c);font-size:11px;letter-spacing:1.5px;padding:5px 12px;border-radius:20px;cursor:pointer;margin-top:4px;flex-shrink:0}
+.skip-btn:active{opacity:.6}
+
+/* upnext */
+.upnext{background:var(--surface);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:8px 12px;flex-shrink:0;margin-top:6px}
+.upnext-title{font-family:var(--font-c);font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:3px}
+.upnext-item{font-family:var(--font-c);font-size:12px;color:var(--muted);padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.upnext-item.upnext-first{color:var(--text)}
+
+/* ─── COMPLETE ─── */
+#complete{align-items:center;justify-content:center;padding:20px;gap:18px;text-align:center}
+.done-icon{width:80px;height:80px;border-radius:50%;background:var(--gold-dim);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;animation:glow 2s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(212,175,55,.15)}50%{box-shadow:0 0 50px rgba(212,175,55,.4)}}
+.done-title{font-family:var(--font-d);font-size:38px;letter-spacing:4px;color:var(--gold)}
+.done-stats{font-family:var(--font-c);font-size:14px;color:var(--muted);line-height:2.2}
+.done-stats strong{color:var(--text)}
+.reminders{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 16px;width:100%;text-align:left}
+.reminders-title{font-family:var(--font-c);font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:10px}
+.reminder-item{font-size:12px;color:var(--muted);padding:3px 0;line-height:1.5;border-bottom:1px solid rgba(255,255,255,.04)}
+.reminder-item:last-child{border:none}
+.reminder-danger{color:#e05050}
+.btn-row{display:flex;gap:10px;width:100%}
+.btn-gold{flex:1;padding:15px;background:var(--gold);color:var(--bg);border:none;border-radius:12px;font-family:var(--font-d);font-size:17px;letter-spacing:2px;cursor:pointer;transition:opacity .15s}
+.btn-gold:active{opacity:.8}
+.btn-ghost{flex:1;padding:15px;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:12px;font-family:var(--font-d);font-size:17px;letter-spacing:2px;cursor:pointer;transition:opacity .15s}
+.btn-ghost:active{opacity:.7}
+.btn-gold:disabled{opacity:.4;cursor:default}
+</style>
 </head>
 <body>
+<div id="app">
+  <header>
+    <span class="logo">SPINERESET</span>
+    <span id="week-badge">WEEK 1</span>
+  </header>
+  <div id="views">
 
-<!-- HOME -->
-<div class="screen" id="home">
-  <div class="eyebrow">SpineReset</div>
-  <h1 class="home-title">Your Daily<br><span class="acc">Recovery</span></h1>
-  <p class="home-sub">Voice-guided · Follow along · No equipment</p>
-  <div class="mode-cards">
-    <button class="mode-card s" onclick="startSession('stretch')">
-      <span class="mode-icon">🌿</span>
-      <div class="mode-name">Morning Stretch</div>
-      <div class="mode-desc">4 exercises · ~4 minutes<br>Right-side targeted release</div>
-      <div class="mode-badge">Daily</div>
-    </button>
-    <button class="mode-card st" onclick="startSession('strength')">
-      <span class="mode-icon">⚡</span>
-      <div class="mode-name">Strengthening</div>
-      <div class="mode-desc">3 exercises · ~5 minutes<br>Left side first, every set</div>
-      <div class="mode-badge">Every other day</div>
-    </button>
-  </div>
-  <p class="home-note">Put on headphones for the best experience.<br>Voice guides you through everything.</p>
-</div>
-
-<!-- SESSION -->
-<div class="screen hidden" id="session">
-  <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
-  <div class="sess-head">
-    <button class="btn-back" onclick="goHome()">←</button>
-    <span class="sess-mode" id="sess-mode">Morning Stretch</span>
-    <span class="sess-count" id="sess-count">1 / 4</span>
-  </div>
-  <div class="ex-display">
-    <div class="ex-circle">
-      <div class="ex-ring" id="ex-ring"></div>
-      <div class="ex-emoji" id="ex-emoji">🌿</div>
+    <!-- HOME -->
+    <div id="home" class="view active">
+      <div>
+        <div class="home-title">READY?</div>
+        <div class="home-sub">CORRECTIVE EXERCISE · 5-DAY PROGRAM</div>
+      </div>
+      <div class="day-grid" id="day-grid"></div>
+      <button class="start-btn" id="start-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+        START SESSION
+      </button>
     </div>
-    <div class="ex-name" id="ex-name">Loading…</div>
-    <div class="ex-instr" id="ex-instr">Get ready</div>
-    <div class="rep-wrap" id="rep-wrap">
-      <div class="rep-big" id="rep-big">—</div>
-      <div class="rep-lbl" id="rep-lbl">reps</div>
+
+    <!-- SESSION -->
+    <div id="session" class="view">
+      <div class="phase-badge badge-bilateral" id="phase-badge">EXERCISE</div>
+      <div class="ex-name name-standard" id="ex-name">—</div>
+      <div class="ex-muscles" id="ex-muscles"></div>
+      <div class="cue-card" id="cue-card"><div class="cue-text" id="cue-text"></div></div>
+      <div class="set-row" id="set-row"><span class="set-label" id="set-label"></span></div>
+      <div class="timer-wrap">
+        <svg class="timer-ring" viewBox="0 0 220 220">
+          <circle class="ring-bg" cx="110" cy="110" r="96"/>
+          <circle class="ring-arc" id="ring-arc" cx="110" cy="110" r="96" transform="rotate(-90 110 110)"/>
+        </svg>
+        <div class="timer-center">
+          <div class="timer-num" id="timer-num">—</div>
+          <div class="timer-unit" id="timer-unit"></div>
+        </div>
+      </div>
+      <button class="skip-btn" id="skip-btn">SKIP</button>
+      <button class="done-btn done-gold" id="done-btn">DONE SET</button>
+      <div class="upnext" id="upnext">
+        <div class="upnext-title">UP NEXT</div>
+        <div id="upnext-list"></div>
+      </div>
     </div>
-    <div class="set-dots" id="set-dots"></div>
-  </div>
-  <div class="controls">
-    <button class="btn-skip" onclick="skipExercise()">Skip →</button>
-    <button class="btn-play paused" id="btn-play" onclick="togglePause()">▶</button>
-    <button class="btn-music on" id="btn-music" onclick="toggleMusic()">♪</button>
+
+    <!-- COMPLETE -->
+    <div id="complete" class="view">
+      <div class="done-icon">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="done-title">SESSION DONE!</div>
+      <div class="done-stats" id="done-stats"></div>
+      <div class="reminders">
+        <div class="reminders-title">KEY REMINDERS</div>
+        <div class="reminder-item">Back arches during Dead Bug = too far — stop, reset</div>
+        <div class="reminder-item">Scapula retracts FIRST on all row movements</div>
+        <div class="reminder-item">Never shrug during Y-T-W raises</div>
+        <div class="reminder-item">Push-Up Plus = extra push at TOP only</div>
+        <div class="reminder-item">Posterior pelvic tilt = tuck tailbone, flatten lower back</div>
+        <div class="reminder-item reminder-danger">STOP if numbness/tingling in arms, sharp radiating pain, or dizziness</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" id="back-btn">← DAYS</button>
+        <button class="btn-gold" id="week-btn" style="display:none">WEEK DONE →</button>
+      </div>
+    </div>
+
   </div>
 </div>
-
-<!-- DONE -->
-<div class="screen hidden" id="done">
-  <div class="done-icon">✦</div>
-  <div class="done-title">Session Complete</div>
-  <div class="done-sub" id="done-sub">Great work. Come back tomorrow.</div>
-  <button class="btn-home" onclick="goHome()">← Back to Home</button>
-</div>
-
 <script>
-// ════════════════════════════════════
-// DATA
-// ════════════════════════════════════
-const SESSIONS = {
-  stretch: {
-    label: 'Morning Stretch',
-    exercises: [
-      {
-        name:'Thread the Needle', emoji:'🧵', type:'reps', reps:5, sets:1,
-        intro:"Thread the Needle. This gently derotates your thoracic curve — especially important for your right side.",
-        setup:"Get on all fours. Hands under your shoulders, knees under your hips. Take a slow breath in.",
-        steps:[
-          "Raise your left arm up toward the ceiling. Feel your chest open.",
-          "Now slowly slide that arm under your body toward the right. Let your shoulder and ear come to rest on the floor.",
-          "Hold here and breathe. Feel the rotation through your upper back.",
-          "Slowly return. Good. That is one rep.",
-          "Now switch. When the right arm threads under — go a little deeper. Your right side is the tight side. Lean into it."
-        ],
-        repCue:"That's {n}. Switch sides. Right arm deeper.",
-        done:"Beautiful. Thread the Needle complete.",
-      },
-      {
-        name:"Child's Pose — Left", emoji:'🙏', type:'hold', holdSecs:30, sets:2,
-        intro:"Child's Pose with hands walked to the left. This stretches the compressed right side of your spine.",
-        setup:"Kneel down and sit your hips back toward your heels. Extend both arms forward on the floor.",
-        steps:[
-          "Walk both hands as far to the left as you can.",
-          "You should feel a stretch running down your right flank. Only the right side.",
-          "Breathe deeply. With every exhale, let yourself sink a little further.",
-          "Stay here. I'll count you down."
-        ],
-        setCue:"Good. Rest for a moment. One more hold to go.",
-        done:"Excellent. Child's Pose done.",
-      },
-      {
-        name:'Right Arm Side Bend', emoji:'🌊', type:'hold', holdSecs:30, sets:2,
-        intro:"Right Arm Side Bend. This lengthens the right lateral chain which is chronically short from your curve.",
-        setup:"Stand up. Feet shoulder-width apart. Roll your shoulders back.",
-        steps:[
-          "Raise your right arm straight overhead.",
-          "Now lean your entire body to the left. Hard.",
-          "Feel the deep stretch along your right ribs and lat. Left arm hangs naturally.",
-          "Hold here while I count you down."
-        ],
-        setCue:"Come up slowly. Good. Brief rest. One more.",
-        done:"Great. Side Bend done.",
-      },
-      {
-        name:'Cat-Cow', emoji:'🐈', type:'reps', reps:10, sets:1,
-        intro:"Cat-Cow. Ten slow reps. Think of moving one vertebra at a time. Slow is everything here.",
-        setup:"Back on all fours. Flat back to start.",
-        steps:[
-          "CAT. Exhale and arch your back up toward the ceiling. Chin tucked to chest. Feel your mid-back lengthen.",
-          "COW. Inhale, let your belly sag down toward the floor. Look gently ahead.",
-          "Keep alternating. Slow and fluid. Imagine your spine moving like a wave.",
-          "Let's go. I'll count."
-        ],
-        repCue:"That's {n}.",
-        done:"Perfect. Morning stretch complete. Your spine thanks you.",
-      },
-    ]
+'use strict';
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+const CIRC = 2 * Math.PI * 96; // 603.2
+
+// ─── Exercise Database ───────────────────────────────────────────────────────
+const EXDB = {
+  1: {
+    name: 'Prone Y-T-W Raises',
+    muscles: 'Lower/mid trapezius · serratus anterior',
+    sets: 3, repsLabel: '8–10 reps (Y, T, W)', restSec: 60,
+    cue: 'Face down, thumbs up. Y=130°, T=90°, W=goalpost. Squeeze blades DOWN. 3s hold at top. Never shrug.',
+    rightMod: 'Do 2 EXTRA REPS with RIGHT arm only in each position (Y, T, W). Left arm stays standard.',
+    rightModSets: 3,
   },
-  strength: {
-    label: 'Strengthening',
-    exercises: [
-      {
-        name:'Dead Bug', emoji:'🐛', type:'reps', reps:8, sets:3,
-        intro:"Dead Bug. Three sets of eight reps each side. Left side always first. This builds deep core stability without loading your spine.",
-        setup:"Lie on your back. Bend both knees to ninety degrees, feet off the floor. Arms pointing straight up to the ceiling.",
-        steps:[
-          "Press your lower back flat into the floor. This is your anchor. Keep it there the entire time.",
-          "Left side first. Slowly extend your left arm back overhead and your right leg straight out — at the same time.",
-          "Only go as far as your lower back stays flat. No arching. Bring it back.",
-          "Now switch — right arm back, left leg out. That is one full rep.",
-          "Slow and controlled. I'll count."
-        ],
-        repCue:"That's {n}.",
-        setCue:"Set complete. Rest fifteen seconds. Keep that lower back awareness when you come back.",
-        done:"Dead Bug done. Three sets complete.",
-      },
-      {
-        name:'Bird Dog', emoji:'🦅', type:'reps_hold', reps:8, holdSecs:2, sets:3,
-        intro:"Bird Dog. Three sets of eight. Left side first every set. Two second hold at the top — that's what makes this corrective.",
-        setup:"Back on all fours. Flat back. No sagging in the middle.",
-        steps:[
-          "Left side first. Extend your left arm directly forward and your right leg directly back — simultaneously.",
-          "Hips stay level. Don't let them rotate or drop to one side.",
-          "Hold for two full seconds at the top. Then lower slowly with control.",
-          "Then right arm, left leg. Two seconds. Return. That's one rep."
-        ],
-        repCue:"That's {n}. Hold.",
-        setCue:"Set done. Short rest. Hips level is the whole challenge — keep that focus.",
-        done:"Bird Dog complete. Nice work.",
-      },
-      {
-        name:'Left Side Plank', emoji:'🏋', type:'hold', holdSecs:20, sets:3,
-        intro:"Left Side Plank. Left side only — three holds of twenty seconds. This directly strengthens your elongated left side — the convex side of your curve.",
-        setup:"Lie on your left side. Left elbow directly below your left shoulder.",
-        steps:[
-          "Stack your feet or stagger one in front for balance.",
-          "Lift your hips off the floor. Your body should form a straight line from head to heel.",
-          "Right arm rests on your hip or reaches up.",
-          "Breathe normally throughout. Don't hold your breath.",
-          "I'll count you down."
-        ],
-        setCue:"Good. Rest. Two more holds.",
-        done:"Left Side Plank complete. That is your full strengthening session. Excellent work today.",
-      },
-    ]
-  }
+  2: {
+    name: 'Wall Slides',
+    muscles: 'Serratus anterior · lower trap · thoracic extensors',
+    sets: 3, repsLabel: '10–12 reps', restSec: 45,
+    cue: 'Back flat on wall — head, glutes, upper back touching. Goalpost to Y shape, 3s up / 3s down. Wrists and elbows stay on wall.',
+    rightMod: null,
+  },
+  3: {
+    name: 'Deep Cervical Flexor Chin Tuck Hold',
+    muscles: 'Deep neck flexors',
+    sets: 3, repsLabel: '10 reps × 10s hold', timeSec: 100, restSec: 30,
+    cue: 'Lying on back, towel under neck. Tiny nod — like holding a grape with chin. No surface neck strain.',
+    rightMod: 'After EACH bilateral set, gently rotate RIGHT head while keeping chin tucked. Rotate only to mild tension — never pain.',
+    rightModSets: 3, rightModTimeSec: 30,
+  },
+  4: {
+    name: 'DB Single-Arm Prone Row',
+    muscles: 'Rhomboids · mid/lower trap · posterior deltoid · rotator cuff',
+    sets: 3, repsLabel: '10–12 reps per side', restSec: 45,
+    cue: 'Retract scapula FIRST, then bend elbow. Row to hip, squeeze blade 2s. Lower 3–4s (slow eccentric). Full protraction at bottom. Start 5 kg.',
+    rightMod: '4 SETS on RIGHT side (1 extra). Left stays at 3. Focus on engaging right lower trapezius.',
+    rightModSets: 4,
+  },
+  5: {
+    name: 'Dead Bug',
+    muscles: 'Transversus abdominis · obliques',
+    sets: 3, repsLabel: '8–10 reps per side', restSec: 45,
+    cue: 'Back FLAT on floor — never arching. Extend opposite arm and leg. Exhale on extend. If back arches = too far. Regression: legs only, arms pointing up.',
+    rightMod: null,
+  },
+  6: {
+    name: 'Doorway Pectoral Stretch',
+    muscles: 'Pectoralis major/minor',
+    sets: 2, repsLabel: '30s per side (2 heights)', perSide: true, sideSec: 30, restSec: 0,
+    cue: 'Forearms on door frame, step through. No lower back arching. Do BOTH heights: shoulder level and above shoulder.',
+    rightMod: '2 × 30s EXTRA on RIGHT side only: face the frame, right forearm on frame, rotate body AWAY from right arm.',
+    rightModSets: 2, rightModTimeSec: 30,
+  },
+  7: {
+    name: 'Glute Bridge',
+    muscles: 'Gluteus maximus · counters anterior pelvic tilt',
+    sets: 3, repsLabel: '12–15 reps', restSec: 45,
+    cue: 'Flatten back first (tuck tailbone), THEN lift hips. Squeeze glutes hard. 3s hold at top. No hyperextension. Drive through heels.',
+    rightMod: null,
+  },
+  8: {
+    name: 'Half-Kneeling Hip Flexor Stretch',
+    muscles: 'Iliopsoas · rectus femoris',
+    sets: 2, repsLabel: '30s per side', perSide: true, sideSec: 30, restSec: 0,
+    cue: 'TUCK TAILBONE and squeeze back-leg glute. Shift hips forward — do NOT lean torso. Raise same-side arm overhead for deeper psoas stretch.',
+    rightMod: null,
+  },
+  9: {
+    name: 'Side-Lying DB External Rotation',
+    muscles: 'Infraspinatus · teres minor (rotator cuff)',
+    sets: 3, repsLabel: '12–15 reps per side', restSec: 45,
+    cue: 'Lie on left side, right elbow pinned to hip at 90°. Rotate forearm toward ceiling. 2s hold top, 3s lower. Small motion, no body rolling. Start 1–2 kg.',
+    rightMod: '4 SETS on RIGHT side (1 extra). Left stays at 3 sets.',
+    rightModSets: 4,
+  },
+  10: {
+    name: 'Upper Trap & Levator Stretch',
+    muscles: 'Upper trapezius · levator scapulae',
+    sets: 2, repsLabel: '30s per side (2 positions)', perSide: true, sideSec: 30, restSec: 0,
+    cue: 'Trapezius: ear toward opposite shoulder. Levator: look toward opposite armpit. 30s each position per side.',
+    rightMod: '1 EXTRA SET: LEFT upper trap (sits higher) + RIGHT levator scapulae (frees restricted right rotation).',
+    rightModSets: 1, rightModTimeSec: 30,
+  },
+  11: {
+    name: 'Thoracic Extension over Roller',
+    muscles: 'Thoracic spine extension mobility',
+    sets: 2, repsLabel: '8 reps at 2–3 spinal levels', restSec: 0,
+    cue: 'Roller under mid-back. Hands behind head. Extend OVER roller. Core engaged, ribs down. 5s hold at end-range.',
+    rightMod: null,
+  },
+  12: {
+    name: 'DB Farmers Carry',
+    muscles: 'Postural chain · core · grip strength',
+    sets: 3, repsLabel: '30–45s walk', timeSec: 40, restSec: 60,
+    cue: 'Chin tucked, shoulders packed down and back, core braced, no rib flare, neutral pelvis. Walk tall. 8–12 kg per hand.',
+    rightMod: null,
+  },
+  13: {
+    name: 'Bird Dog',
+    muscles: 'Multifidus · transversus abdominis · glutes',
+    sets: 3, repsLabel: '8 per side × 5s hold', restSec: 0,
+    cue: 'Quadruped. Brace core first. Extend opposite arm and leg. ZERO trunk rotation or pelvic shift. 5s hold each rep.',
+    rightMod: null,
+  },
+  14: {
+    name: 'Push-Up Plus',
+    muscles: 'Serratus anterior — targets right scapular winging',
+    sets: 3, repsLabel: '8–12 reps', restSec: 45,
+    cue: 'At top of push-up, push floor AWAY to fully protract shoulder blades. Hold 2s. The plus is the extra push at top. Regression: from knees or wall.',
+    rightMod: 'Focus on feeling RIGHT serratus anterior engage (under right armpit). Push harder with right hand at top.',
+    rightModSets: 3,
+  },
+  15: {
+    name: 'Side Plank',
+    muscles: 'Lateral core · quadratus lumborum',
+    sets: 3, repsLabel: '20–30s per side', perSide: true, sideSec: 25, restSec: 0,
+    cue: 'Start from KNEES (not feet) to reduce lumbar load. Hips stacked, straight line body. No sagging.',
+    rightMod: '1 EXTRA SET on RIGHT side (4 sets right, 3 sets left).',
+    rightModSets: 4,
+  },
 };
 
-// ════════════════════════════════════
-// AUDIO — AMBIENT MUSIC
-// ════════════════════════════════════
-let audioCtx=null, musicGain=null, musicOn=true;
+// ─── Warmup ──────────────────────────────────────────────────────────────────
+const WARMUP = [
+  { id: 'wA', name: 'Diaphragmatic Breathing', sub: '+ Posterior Pelvic Tilt',
+    muscles: 'Diaphragm · pelvic floor',
+    repsLabel: '10 breaths', restSec: 0,
+    cue: '4 seconds IN, 6–8 seconds OUT. Belly expands, back stays flat. Tailbone tucked (posterior pelvic tilt).' },
+  { id: 'wB', name: 'Chin Tucks', sub: '',
+    muscles: 'Deep neck flexors',
+    repsLabel: '10 reps × 3s hold', timeSec: 30, restSec: 0,
+    cue: 'Slide head straight back — no tilting. 3-second hold each rep. Like pushing your head through a wall.' },
+  { id: 'wC', name: 'Thoracic Cat-Cow', sub: '',
+    muscles: 'Thoracic extensors · multifidus',
+    repsLabel: '10 cycles', restSec: 0,
+    cue: 'ONLY mid-back moves. Neck and lower back stay completely still throughout.' },
+];
 
-function initAudio(){
-  if(audioCtx) return;
-  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  musicGain=audioCtx.createGain();
-  musicGain.gain.value=musicOn?0.055:0;
-  musicGain.connect(audioCtx.destination);
+// ─── Day Schedules ────────────────────────────────────────────────────────────
+const DAYS = {
+  1: { title: 'UPPER CORRECTIVE + CORE', exercises: [1,2,3,5,6,10] },
+  2: { title: 'LOWER CORRECTIVE + MOBILITY', exercises: [7,8,11,13,5,10] },
+  3: { title: 'UPPER STRENGTH + ASYMMETRY', exercises: [4,1,14,9,6] },
+  4: { title: 'CORE + MOBILITY', exercises: [5,13,15,11,8,10,3] },
+  5: { title: 'FULL INTEGRATION', exercises: [1,4,14,12,7,5,6] },
+};
 
-  // Gentle drone pads
-  [[110,.22],[146.83,.18],[164.81,.16],[220,.14]].forEach(([freq,vol],i)=>{
-    const osc=audioCtx.createOscillator();
-    const g=audioCtx.createGain();
-    const lfo=audioCtx.createOscillator();
-    const lg=audioCtx.createGain();
-    osc.type='sine'; osc.frequency.value=freq;
-    lfo.type='sine'; lfo.frequency.value=0.07+i*0.025;
-    lg.gain.value=vol*0.4;
-    lfo.connect(lg); lg.connect(g.gain);
-    g.gain.value=vol;
-    osc.connect(g); g.connect(musicGain);
-    osc.start(); lfo.start();
-  });
-  scheduleBell();
+// ─── State ────────────────────────────────────────────────────────────────────
+let S = {
+  day: 1,
+  week: 1,
+  steps: [],
+  idx: 0,
+  currentSet: 1,
+  phase: 'active', // active | resting | side-L | side-R
+  timerSec: 0,
+  timerMax: 0,
+  interval: null,
+  startTime: null,
+  doneSets: 0,
+  doneExercises: 0,
+  voices: [],
+  audioCtx: null,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  $(id).classList.add('active');
 }
 
-function scheduleBell(){
-  if(!audioCtx) return;
-  const delay=9+Math.random()*14;
-  setTimeout(()=>{
-    if(!audioCtx) return;
-    const freqs=[523.25,659.25,783.99,1046.5];
-    const f=freqs[Math.floor(Math.random()*freqs.length)];
-    const osc=audioCtx.createOscillator();
-    const env=audioCtx.createGain();
-    osc.type='sine'; osc.frequency.value=f;
-    env.gain.setValueAtTime(0,audioCtx.currentTime);
-    env.gain.linearRampToValueAtTime(0.1,audioCtx.currentTime+0.02);
-    env.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+3.8);
-    osc.connect(env); env.connect(musicGain);
-    osc.start(); osc.stop(audioCtx.currentTime+3.8);
-    scheduleBell();
-  },delay*1000);
+function setRing(frac) {
+  const offset = CIRC * (1 - Math.min(1, Math.max(0, frac)));
+  $('ring-arc').style.strokeDashoffset = offset;
 }
 
-function toggleMusic(){
-  musicOn=!musicOn;
-  if(musicGain) musicGain.gain.linearRampToValueAtTime(
-    musicOn?0.055:0, audioCtx.currentTime+0.5);
-  document.getElementById('btn-music').classList.toggle('on',musicOn);
+function clearTimer() {
+  if (S.interval) { clearInterval(S.interval); S.interval = null; }
 }
 
-// ════════════════════════════════════
-// SPEECH
-// ════════════════════════════════════
-function speak(text,cb){
-  speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.rate=0.87; u.pitch=1.04; u.volume=1;
-  const voices=speechSynthesis.getVoices();
-  const v=voices.find(v=>
-    /Samantha|Karen|Moira|Google UK Female|Google US Female|Serena|Tessa/.test(v.name)
-  )||voices.find(v=>/en/.test(v.lang))||voices[0];
-  if(v) u.voice=v;
-  u.onend=u.onerror=()=>{ if(cb) cb(); };
-  speechSynthesis.speak(u);
-}
-
-// ════════════════════════════════════
-// SESSION STATE
-// ════════════════════════════════════
-let S=null; // session
-
-function startSession(mode){
-  initAudio();
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  speechSynthesis.cancel();
-
-  S={ mode, data:SESSIONS[mode], exIdx:0, setIdx:0, repCount:0,
-      paused:false, iv:null };
-
-  document.getElementById('sess-mode').textContent=S.data.label;
-  showScreen('session');
-  updateProg();
-  setTimeout(beginEx,700);
-}
-
-function beginEx(){
-  if(!S||S.paused) return;
-  const ex=S.data.exercises[S.exIdx];
-  S.setIdx=0; S.repCount=0;
-  setExUI(ex);
-  updateProg();
-  renderSetDots(ex);
-  speak(ex.intro,()=>{
-    if(!S||S.paused) return;
-    speak(ex.setup,()=>{
-      if(!S||S.paused) return;
-      setTimeout(()=>beginSet(ex),600);
-    });
-  });
-}
-
-function beginSet(ex){
-  if(!S||S.paused) return;
-  S.repCount=0;
-  renderSetDots(ex);
-  readSteps(ex,0,()=>{
-    if(ex.type==='hold') runHold(ex);
-    else runReps(ex);
-  });
-}
-
-function readSteps(ex,i,done){
-  if(!S||S.paused) return;
-  if(i>=ex.steps.length){done();return;}
-  setInstr(ex.steps[i]);
-  speak(ex.steps[i],()=>{ if(S&&!S.paused) setTimeout(()=>readSteps(ex,i+1,done),300); });
-}
-
-// ── REPS ─────────────────────────────
-function runReps(ex){
-  if(!S||S.paused) return;
-  setInstr('Begin. Left side first.');
-  paceRep(ex);
-}
-
-function paceRep(ex){
-  if(!S||S.paused) return;
-  const iv=setInterval(()=>{
-    if(!S||S.paused){clearInterval(iv);return;}
-    S.repCount++;
-    bumpNum();
-    setNum(ex.reps-S.repCount,'reps remaining');
-
-    const cue=(ex.repCue||'That\'s {n}.').replace('{n}',ordinal(S.repCount));
-    if(S.repCount>=ex.reps){
-      clearInterval(iv);
-      speak(cue,()=>repsDone(ex));
-    }
-  },3400);
-  S.iv=iv;
-}
-
-// ── REPS + HOLD (Bird Dog) ────────────
-function runReps_hold(ex){
-  // same as runReps but each rep voice includes hold
-  if(!S||S.paused) return;
-  setInstr('Begin. Left arm, right leg. Hold 2 seconds.');
-  paceRepsHold(ex);
-}
-
-function paceRepsHold(ex){
-  if(!S||S.paused) return;
-  doRepHold(ex);
-}
-
-function doRepHold(ex){
-  if(!S||S.paused) return;
-  speak('Extend and hold.',()=>{
-    if(!S||S.paused) return;
-    countdown(2,()=>{
-      if(!S||S.paused) return;
-      S.repCount++;
-      bumpNum();
-      setNum(ex.reps-S.repCount,'reps remaining');
-      const cue=(ex.repCue||'That\'s {n}.').replace('{n}',ordinal(S.repCount));
-      if(S.repCount>=ex.reps){
-        speak(cue,()=>repsDone(ex));
-      } else {
-        speak(cue,()=>{ if(S&&!S.paused) doRepHold(ex); });
-      }
-    });
-  });
-}
-
-function repsDone(ex){
-  if(!S) return;
-  if(S.iv) clearInterval(S.iv);
-  S.setIdx++;
-  if(S.setIdx<(ex.sets||1)){
-    speak(ex.setCue||'Good. Rest briefly.',()=>{
-      if(S&&!S.paused) setTimeout(()=>beginSet(ex),2200);
-    });
-  } else {
-    speak(ex.done||'Exercise complete.',()=>setTimeout(nextEx,1200));
-  }
-}
-
-// ── HOLD ─────────────────────────────
-function runHold(ex){
-  if(!S||S.paused) return;
-  document.getElementById('ex-ring').className='ex-ring pulse';
-  setNum(ex.holdSecs,'seconds');
-  speak('Begin your hold.',()=>{
-    if(S&&!S.paused) countdown(ex.holdSecs,()=>holdDone(ex));
-  });
-}
-
-function countdown(secs,done){
-  if(!S||S.paused) return;
-  let t=secs;
-  setNum(t,'seconds');
-  const iv=setInterval(()=>{
-    if(!S||S.paused){clearInterval(iv);return;}
-    t--;
-    setNum(t,'seconds');
-    bumpNum();
-    if(t===15||t===10||t===5) speak(t+' seconds.',null);
-    if(t<=0){
-      clearInterval(iv);
-      speak('And release.',done);
-    }
-  },1000);
-  S.iv=iv;
-}
-
-function holdDone(ex){
-  if(!S) return;
-  document.getElementById('ex-ring').className='ex-ring spin';
-  S.setIdx++;
-  if(S.setIdx<(ex.sets||1)){
-    speak(ex.setCue||'Good. Rest briefly.',()=>{
-      if(S&&!S.paused) setTimeout(()=>{
-        setInstr(ex.steps[0]);
-        runHold(ex);
-      },2800);
-    });
-  } else {
-    speak(ex.done||'Exercise complete.',()=>setTimeout(nextEx,1200));
-  }
-}
-
-// ── SEQUENCE ──────────────────────────
-function nextEx(){
-  if(!S) return;
-  S.exIdx++;
-  if(S.exIdx>=S.data.exercises.length){ finishSession(); return; }
-  const ex=S.data.exercises[S.exIdx];
-  speak('Next up. '+ex.name+'.',()=>{
-    if(!S) return;
-    setTimeout(()=>{ setExUI(ex); updateProg(); setTimeout(()=>beginEx(),500); },400);
-  });
-}
-
-function finishSession(){
-  const stretch=S.mode==='stretch';
-  speak(stretch
-    ?'Morning stretch complete. Excellent work. See you tomorrow.'
-    :'Strengthening session complete. Well done. Rest up and come back in two days.',
-    ()=>{});
-  document.getElementById('done-sub').textContent=stretch
-    ?'Great work. Come back tomorrow\nfor your next session.'
-    :'Rest day tomorrow.\nStrengthening again in 2 days.';
-  setTimeout(()=>showScreen('done'),1600);
-}
-
-// ════════════════════════════════════
-// CONTROLS
-// ════════════════════════════════════
-function togglePause(){
-  if(!S) return;
-  if(!S.paused){
-    S.paused=true;
+function speak(txt) {
+  if (!window.speechSynthesis) return;
+  try {
     speechSynthesis.cancel();
-    if(S.iv) clearInterval(S.iv);
-    document.getElementById('btn-play').textContent='▶';
-    document.getElementById('btn-play').classList.add('paused');
-    document.getElementById('ex-ring').className='ex-ring';
-    setInstr('Paused. Tap play to continue.');
-  } else {
-    S.paused=false;
-    document.getElementById('btn-play').textContent='⏸';
-    document.getElementById('btn-play').classList.remove('paused');
-    const ex=S.data.exercises[S.exIdx];
-    speak('Resuming.',()=>{
-      if(!S||S.paused) return;
-      if(ex.type==='hold') runHold(ex);
-      else if(ex.type==='reps_hold') runReps_hold(ex);
-      else runReps(ex);
-    });
+    const u = new SpeechSynthesisUtterance(txt);
+    u.rate = 0.95; u.pitch = 1.0; u.volume = 0.85;
+    const eng = S.voices.find(v => v.lang.startsWith('en'));
+    if (eng) u.voice = eng;
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+
+function beep(freq = 880, dur = 0.25) {
+  try {
+    if (!S.audioCtx) S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = S.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  S.week = parseInt(localStorage.getItem('sr_week') || '1');
+  S.day  = parseInt(localStorage.getItem('sr_day')  || '1');
+
+  $('ring-arc').style.strokeDasharray = CIRC;
+  setRing(0);
+
+  updateWeekBadge();
+  renderDayCards();
+
+  $('week-badge').addEventListener('click', () => {
+    S.week = (S.week % 12) + 1;
+    localStorage.setItem('sr_week', S.week);
+    updateWeekBadge();
+  });
+  $('start-btn').addEventListener('click', startSession);
+  $('done-btn').addEventListener('click', onDone);
+  $('skip-btn').addEventListener('click', onSkip);
+  $('back-btn').addEventListener('click', () => showView('home'));
+  $('week-btn').addEventListener('click', onWeekComplete);
+
+  if (window.speechSynthesis) {
+    speechSynthesis.onvoiceschanged = () => { S.voices = speechSynthesis.getVoices(); };
+    S.voices = speechSynthesis.getVoices();
   }
 }
 
-function skipExercise(){
-  if(!S) return;
-  speechSynthesis.cancel();
-  if(S.iv) clearInterval(S.iv);
-  nextEx();
+function updateWeekBadge() {
+  $('week-badge').textContent = `WEEK ${S.week}`;
 }
 
-function goHome(){
-  speechSynthesis.cancel();
-  if(S&&S.iv) clearInterval(S.iv);
-  S=null;
-  showScreen('home');
+function renderDayCards() {
+  const grid = $('day-grid');
+  grid.innerHTML = '';
+  for (let d = 1; d <= 5; d++) {
+    const card = document.createElement('div');
+    card.className = 'day-card' + (d === S.day ? ' selected' : '');
+    card.innerHTML = `<span class="day-num">${d}</span><div class="day-info"><div class="day-label">DAY ${d}</div><div class="day-title">${DAYS[d].title}</div></div>`;
+    card.addEventListener('click', () => {
+      S.day = d;
+      localStorage.setItem('sr_day', d);
+      renderDayCards();
+    });
+    grid.appendChild(card);
+  }
 }
 
-// ════════════════════════════════════
-// UI HELPERS
-// ════════════════════════════════════
-function showScreen(id){
-  ['home','session','done'].forEach(s=>{
-    document.getElementById(s).classList.toggle('hidden',s!==id);
+// ─── Build Steps ──────────────────────────────────────────────────────────────
+function buildSteps(day) {
+  const steps = [];
+
+  // Warmup (always 3)
+  for (const w of WARMUP) {
+    steps.push({ type: 'warmup', ex: w });
+  }
+
+  for (const exId of DAYS[day].exercises) {
+    if (exId === 15 && S.week < 3) {
+      // Locked: show card + extra bird dog
+      steps.push({ type: 'locked', exId: 15 });
+      steps.push({ type: 'bilateral', exId: 13, ex: { ...EXDB[13], sets: 1, repsLabel: '8 per side × 5s hold (EXTRA — replaces Side Plank)' } });
+    } else {
+      const ex = EXDB[exId];
+      steps.push({ type: 'bilateral', exId, ex });
+      if (ex.rightMod) {
+        steps.push({ type: 'right-mod', exId, ex });
+      }
+    }
+  }
+  return steps;
+}
+
+// ─── Start Session ────────────────────────────────────────────────────────────
+function startSession() {
+  S.steps = buildSteps(S.day);
+  S.idx = 0;
+  S.currentSet = 1;
+  S.doneSets = 0;
+  S.doneExercises = 0;
+  S.startTime = Date.now();
+  S.phase = 'active';
+  showView('session');
+  renderStep();
+}
+
+// ─── Render Step ──────────────────────────────────────────────────────────────
+function renderStep() {
+  clearTimer();
+  const step = S.steps[S.idx];
+  if (!step) { endSession(); return; }
+
+  $('session').classList.remove('resting', 'right-active');
+  $('done-btn').disabled = false;
+
+  if (step.type === 'locked') {
+    renderLocked(step);
+    return;
+  }
+
+  const isRight   = step.type === 'right-mod';
+  const isWarmup  = step.type === 'warmup';
+  const ex        = step.ex;
+  const sets      = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
+
+  // Phase badge
+  const badge = $('phase-badge');
+  const nameEl = $('ex-name');
+
+  if (isWarmup) {
+    const wi = WARMUP.indexOf(ex);
+    badge.textContent = `WARM-UP ${wi + 1} OF 3`;
+    badge.className = 'phase-badge badge-warmup';
+    nameEl.className = 'ex-name name-standard';
+  } else if (isRight) {
+    badge.textContent = 'RIGHT SIDE +';
+    badge.className = 'phase-badge badge-right';
+    nameEl.className = 'ex-name name-right';
+    $('session').classList.add('right-active');
+  } else {
+    const exIdx = S.steps.slice(0, S.idx + 1).filter(s => s.type === 'bilateral').length;
+    const exTotal = S.steps.filter(s => s.type === 'bilateral').length;
+    badge.textContent = `EXERCISE ${exIdx} OF ${exTotal}`;
+    badge.className = 'phase-badge badge-bilateral';
+    nameEl.className = 'ex-name name-standard';
+  }
+
+  nameEl.textContent = ex.name;
+  $('ex-muscles').textContent = ex.muscles || '';
+
+  // Cue card
+  const cueCard = $('cue-card');
+  const cueText = $('cue-text');
+  if (isRight) {
+    cueCard.className = 'cue-card cue-right';
+    cueText.textContent = ex.rightMod;
+  } else {
+    cueCard.className = 'cue-card';
+    cueText.textContent = ex.cue;
+  }
+
+  // Set dots
+  S.currentSet = 1;
+  renderSetDots(sets, 1, isRight);
+
+  // Done button
+  const doneBtn = $('done-btn');
+  if (isRight) {
+    doneBtn.className = 'done-btn done-purple';
+    doneBtn.textContent = 'DONE SET';
+  } else if (isWarmup) {
+    doneBtn.className = 'done-btn done-gold';
+    doneBtn.textContent = 'DONE';
+  } else {
+    doneBtn.className = 'done-btn done-gold';
+    doneBtn.textContent = 'DONE SET';
+  }
+
+  // Timer setup
+  const timeSec  = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+  const perSide  = !isRight && !!ex.perSide;
+  const sideSec  = ex.sideSec || 30;
+
+  if (timeSec && !perSide) {
+    startCountdown(timeSec, () => finishTimerSet());
+  } else if (perSide) {
+    startSideTimer(sideSec);
+  } else {
+    // Manual mode
+    setRing(0);
+    $('timer-num').textContent = firstNum(isRight ? (ex.rightModLabel || ex.repsLabel) : ex.repsLabel);
+    $('timer-unit').textContent = 'REPS';
+  }
+
+  renderUpNext();
+  speak(ex.name);
+}
+
+function renderLocked(step) {
+  $('phase-badge').textContent = 'LOCKED — WEEK 3+';
+  $('phase-badge').className = 'phase-badge badge-locked';
+  $('ex-name').textContent = 'Side Plank';
+  $('ex-name').className = 'ex-name name-standard';
+  $('ex-muscles').textContent = 'Lateral core · quadratus lumborum';
+  $('cue-card').className = 'cue-card';
+  $('cue-text').textContent = `Side Plank unlocks at Week 3. You are currently in Week ${S.week}. An extra Bird Dog set has been added instead. Tap continue.`;
+  renderSetDots(1, 1, false);
+  $('set-label').textContent = '';
+  setRing(0);
+  $('timer-num').textContent = '—';
+  $('timer-unit').textContent = '';
+  $('done-btn').className = 'done-btn done-ghost';
+  $('done-btn').textContent = 'CONTINUE';
+  renderUpNext();
+}
+
+function firstNum(str) {
+  if (!str) return '—';
+  const m = str.match(/\d+/);
+  return m ? m[0] : '—';
+}
+
+function renderSetDots(total, current, isRight) {
+  const row = $('set-row');
+  row.querySelectorAll('.set-dot').forEach(d => d.remove());
+  const label = $('set-label');
+  for (let i = 1; i <= total; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'set-dot';
+    if (i < current)      dot.classList.add(isRight ? 'dot-right-done' : 'dot-done');
+    else if (i === current) dot.classList.add(isRight ? 'dot-right-current' : 'dot-current');
+    row.insertBefore(dot, label);
+  }
+  label.textContent = `SET ${current} OF ${total}`;
+}
+
+function renderUpNext() {
+  const list = $('upnext-list');
+  list.innerHTML = '';
+  const upcoming = S.steps.slice(S.idx + 1, S.idx + 3);
+  if (!upcoming.length) {
+    list.innerHTML = '<div class="upnext-item upnext-first">Session complete</div>';
+    return;
+  }
+  upcoming.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'upnext-item' + (i === 0 ? ' upnext-first' : '');
+    const ex = s.ex || (s.exId ? EXDB[s.exId] : null);
+    let name = ex ? ex.name : (s.type === 'locked' ? 'Side Plank (locked)' : '—');
+    if (s.type === 'right-mod') name += ' [RIGHT +]';
+    if (s.type === 'warmup')    name += ' [WARM-UP]';
+    div.textContent = name;
+    list.appendChild(div);
   });
 }
 
-function setExUI(ex){
-  document.getElementById('ex-emoji').textContent=ex.emoji;
-  document.getElementById('ex-name').textContent=ex.name;
-  document.getElementById('ex-instr').textContent='';
-  document.getElementById('ex-ring').className='ex-ring spin';
-  document.getElementById('btn-play').textContent='⏸';
-  document.getElementById('btn-play').classList.remove('paused');
-  document.getElementById('sess-count').textContent=
-    (S.exIdx+1)+' / '+S.data.exercises.length;
-  const initReps=ex.type==='hold'?ex.holdSecs:ex.reps;
-  const initLbl=ex.type==='hold'?'seconds':'reps';
-  setNum(initReps,initLbl);
+// ─── Timers ───────────────────────────────────────────────────────────────────
+function startCountdown(sec, onDone) {
+  clearTimer();
+  S.timerSec = sec;
+  S.timerMax = sec;
+  $('timer-num').textContent = sec;
+  $('timer-unit').textContent = 'SEC';
+  $('done-btn').disabled = true;
+  setRing(1);
+
+  S.interval = setInterval(() => {
+    S.timerSec--;
+    $('timer-num').textContent = S.timerSec;
+    setRing(S.timerSec / S.timerMax);
+    if (S.timerSec <= 0) {
+      clearTimer();
+      beep();
+      $('done-btn').disabled = false;
+      onDone && onDone();
+    }
+  }, 1000);
 }
 
-function setInstr(txt){
-  const el=document.getElementById('ex-instr');
-  el.classList.add('fade');
-  setTimeout(()=>{ el.textContent=txt; el.classList.remove('fade'); },200);
+function startSideTimer(sideSec) {
+  const badge = $('phase-badge');
+  const origBadge = badge.textContent;
+  badge.textContent = origBadge + ' · LEFT SIDE';
+  $('timer-unit').textContent = 'SEC';
+  speak('Left side');
+
+  startCountdown(sideSec, () => {
+    speak('Right side');
+    badge.textContent = origBadge + ' · RIGHT SIDE';
+    startCountdown(sideSec, () => {
+      finishTimerSet();
+    });
+  });
 }
 
-function setNum(val,lbl){
-  document.getElementById('rep-wrap').style.display='flex';
-  document.getElementById('rep-big').textContent=val;
-  document.getElementById('rep-lbl').textContent=lbl;
+function startRestTimer(sec) {
+  clearTimer();
+  S.phase = 'resting';
+  $('session').classList.add('resting');
+  $('phase-badge').textContent = 'REST';
+  $('phase-badge').className = 'phase-badge badge-rest';
+  $('ex-name').textContent = 'RECOVER';
+  $('ex-name').className = 'ex-name name-rest';
+  $('ex-muscles').textContent = '';
+  $('cue-card').className = 'cue-card';
+  $('cue-text').textContent = 'Rest. Breathe. Keep form in mind for next set.';
+  $('done-btn').className = 'done-btn done-ghost';
+  $('done-btn').textContent = 'SKIP REST';
+  $('done-btn').disabled = false;
+  speak('Rest');
+  setRing(1);
+  S.timerSec = sec;
+  S.timerMax = sec;
+  $('timer-num').textContent = sec;
+  $('timer-unit').textContent = 'SEC';
+  S.interval = setInterval(() => {
+    S.timerSec--;
+    $('timer-num').textContent = S.timerSec;
+    setRing(S.timerSec / S.timerMax);
+    if (S.timerSec <= 0) {
+      clearTimer();
+      beep(660, 0.15);
+      afterRest();
+    }
+  }, 1000);
 }
 
-function bumpNum(){
-  const el=document.getElementById('rep-big');
-  el.classList.add('bump');
-  setTimeout(()=>el.classList.remove('bump'),140);
+function afterRest() {
+  $('session').classList.remove('resting');
+  S.phase = 'active';
+  const step = S.steps[S.idx];
+  if (!step) { endSession(); return; }
+  const isRight = step.type === 'right-mod';
+  const ex = step.ex;
+  const sets = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
+  S.currentSet++;
+  renderSetDots(sets, S.currentSet, isRight);
+  // Restore correct button style
+  const doneBtn = $('done-btn');
+  doneBtn.disabled = false;
+  if (isRight) {
+    doneBtn.className = 'done-btn done-purple';
+    doneBtn.textContent = 'DONE SET';
+  } else {
+    doneBtn.className = 'done-btn done-gold';
+    doneBtn.textContent = step.type === 'warmup' ? 'DONE' : 'DONE SET';
+  }
+  // Restore phase badge and name
+  $('phase-badge').className = isRight ? 'phase-badge badge-right' : (step.type === 'warmup' ? 'phase-badge badge-warmup' : 'phase-badge badge-bilateral');
+  const origBadge = isRight ? 'RIGHT SIDE +' : (step.type === 'warmup' ? `WARM-UP ${WARMUP.indexOf(ex)+1} OF 3` : (() => {
+    const exIdx = S.steps.slice(0, S.idx + 1).filter(s => s.type === 'bilateral').length;
+    const exTotal = S.steps.filter(s => s.type === 'bilateral').length;
+    return `EXERCISE ${exIdx} OF ${exTotal}`;
+  })());
+  $('phase-badge').textContent = origBadge;
+  $('ex-name').textContent = ex.name;
+  $('ex-name').className = isRight ? 'ex-name name-right' : 'ex-name name-standard';
+  $('ex-muscles').textContent = ex.muscles || '';
+  $('cue-card').className = isRight ? 'cue-card cue-right' : 'cue-card';
+  $('cue-text').textContent = isRight ? ex.rightMod : ex.cue;
+  if (isRight) $('session').classList.add('right-active');
+  // Restart timer if applicable
+  const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+  const perSide = !isRight && !!ex.perSide;
+  if (timeSec && !perSide) {
+    startCountdown(timeSec, () => finishTimerSet());
+  } else if (perSide) {
+    startSideTimer(ex.sideSec || 30);
+  } else {
+    setRing(0);
+    $('timer-num').textContent = firstNum(ex.repsLabel);
+    $('timer-unit').textContent = 'REPS';
+  }
+  speak('Begin');
 }
 
-function renderSetDots(ex){
-  const c=document.getElementById('set-dots');
-  const total=ex.sets||1;
-  if(total<=1){c.innerHTML='';return;}
-  c.innerHTML='';
-  for(let i=0;i<total;i++){
-    const d=document.createElement('div');
-    d.className='sdot '+(i<S.setIdx?'done':i===S.setIdx?'active':'');
-    c.appendChild(d);
+function finishTimerSet() {
+  beep();
+  $('done-btn').disabled = false;
+  const step = S.steps[S.idx];
+  const isRight = step && step.type === 'right-mod';
+  const ex = step && step.ex;
+  const sets = ex ? (isRight ? (ex.rightModSets || ex.sets) : ex.sets) : 1;
+  if (S.currentSet >= sets) {
+    // last set done — advance step
+    S.doneSets += sets;
+    if (step.type === 'bilateral') S.doneExercises++;
+    advanceStep();
+  } else {
+    // rest before next set
+    const restSec = ex ? (ex.restSec || 0) : 0;
+    if (restSec > 0) {
+      startRestTimer(restSec);
+    } else {
+      S.currentSet++;
+      renderSetDots(sets, S.currentSet, isRight);
+      const perSide = !isRight && !!ex.perSide;
+      if (ex.timeSec && !perSide) {
+        startCountdown(ex.timeSec, () => finishTimerSet());
+      } else if (perSide) {
+        startSideTimer(ex.sideSec || 30);
+      }
+    }
   }
 }
 
-function updateProg(){
-  if(!S) return;
-  const pct=(S.exIdx/S.data.exercises.length)*100;
-  document.getElementById('prog-fill').style.width=pct+'%';
+// ─── onDone (manual/done set button) ─────────────────────────────────────────
+function onDone() {
+  clearTimer();
+  const step = S.steps[S.idx];
+  if (!step) { endSession(); return; }
+  if (step.type === 'locked') { advanceStep(); return; }
+  if (S.phase === 'resting') { clearTimer(); afterRest(); return; }
+
+  const isRight = step.type === 'right-mod';
+  const ex = step.ex;
+  const sets = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
+
+  beep(880, 0.18);
+  renderSetDots(sets, S.currentSet, isRight);
+  // mark current dot done
+  const dots = $('set-row').querySelectorAll('.set-dot');
+  dots.forEach((d, i) => {
+    if (i < S.currentSet) d.className = 'set-dot ' + (isRight ? 'dot-right-done' : 'dot-done');
+  });
+
+  if (S.currentSet >= sets) {
+    S.doneSets += sets;
+    if (step.type === 'bilateral') S.doneExercises++;
+    const restSec = ex.restSec || 0;
+    if (restSec > 0) {
+      setTimeout(() => advanceStep(), 300);
+    } else {
+      setTimeout(() => advanceStep(), 300);
+    }
+  } else {
+    const restSec = ex.restSec || 0;
+    if (restSec > 0) {
+      startRestTimer(restSec);
+    } else {
+      S.currentSet++;
+      renderSetDots(sets, S.currentSet, isRight);
+      speak('Begin');
+    }
+  }
 }
 
-function ordinal(n){
-  const s=['th','st','nd','rd'],v=n%100;
-  return n+(s[(v-20)%10]||s[v]||s[0]);
+function onSkip() {
+  clearTimer();
+  const step = S.steps[S.idx];
+  if (step && step.type === 'bilateral') S.doneExercises++;
+  advanceStep();
 }
 
-// ── Handle reps_hold type routing
-const _origBeginSet=beginSet;
-// Override beginSet to route correctly
-// (already handled above via ex.type check)
+function advanceStep() {
+  S.idx++;
+  S.currentSet = 1;
+  S.phase = 'active';
+  $('session').classList.remove('resting', 'right-active');
+  if (S.idx >= S.steps.length) {
+    endSession();
+  } else {
+    renderStep();
+  }
+}
 
-// ════════════════════════════════════
-// SERVICE WORKER + VOICES
-// ════════════════════════════════════
-if('serviceWorker' in navigator)
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+// ─── End Session ─────────────────────────────────────────────────────────────
+function endSession() {
+  clearTimer();
+  const elapsed = Math.round((Date.now() - S.startTime) / 1000);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 
-speechSynthesis.getVoices();
-window.speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+  // Save history
+  const history = JSON.parse(localStorage.getItem('sr_history') || '[]');
+  history.unshift({ day: S.day, date: new Date().toISOString(), duration: elapsed, sets: S.doneSets });
+  if (history.length > 50) history.pop();
+  localStorage.setItem('sr_history', JSON.stringify(history));
+
+  $('done-stats').innerHTML =
+    `<strong>${S.doneExercises}</strong> exercises &nbsp;·&nbsp; <strong>${S.doneSets}</strong> sets<br><strong>${timeStr}</strong> total time`;
+
+  const weekBtn = $('week-btn');
+  if (S.day === 5) {
+    weekBtn.textContent = `WEEK ${S.week} DONE → WEEK ${S.week + 1}`;
+    weekBtn.style.display = '';
+  } else {
+    weekBtn.style.display = 'none';
+  }
+
+  showView('complete');
+  speak('Session complete. Great work.');
+}
+
+function onWeekComplete() {
+  S.week++;
+  localStorage.setItem('sr_week', S.week);
+  updateWeekBadge();
+  $('week-btn').style.display = 'none';
+  showView('home');
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
