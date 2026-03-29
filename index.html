@@ -418,7 +418,12 @@ function speakPromise(text, cancel = true) {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = S.voiceRate; u.pitch = S.voicePitch; u.volume = 1;
     if (S.selectedVoice) u.voice = S.selectedVoice;
-    u.onend = resolve; u.onerror = resolve;
+    // Timeout fallback: mobile Chrome often drops onend — estimate duration + 800ms buffer
+    const estMs = Math.max(1200, (text.length / Math.max(0.3, S.voiceRate)) * 70 + 800);
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    u.onend = finish; u.onerror = finish;
+    setTimeout(finish, estMs);
     speechSynthesis.speak(u);
   });
 }
