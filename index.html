@@ -111,8 +111,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .done-ghost{background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.1)}
 .done-btn:disabled{opacity:.35;cursor:default;transform:none}
 
-/* skip */
-.skip-btn{align-self:flex-end;background:none;border:1px solid rgba(255,255,255,.1);color:var(--muted);font-family:var(--font-c);font-size:11px;letter-spacing:1.5px;padding:5px 12px;border-radius:20px;cursor:pointer;margin-top:4px;flex-shrink:0}
+/* controls row */
+.ctrl-row{display:flex;align-items:center;gap:8px;margin-top:4px;flex-shrink:0}
+.ctrl-btn{background:none;border:1px solid rgba(255,255,255,.1);color:var(--muted);font-family:var(--font-c);font-size:11px;letter-spacing:1.5px;padding:5px 12px;border-radius:20px;cursor:pointer}
+.ctrl-btn:active{opacity:.6}
+.ctrl-stop{border-color:rgba(229,57,53,.3);color:#e05050}
+.skip-btn{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.1);color:var(--muted);font-family:var(--font-c);font-size:11px;letter-spacing:1.5px;padding:5px 12px;border-radius:20px;cursor:pointer}
 .skip-btn:active{opacity:.6}
 
 /* upnext */
@@ -179,7 +183,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
           <div class="timer-unit" id="timer-unit"></div>
         </div>
       </div>
-      <button class="skip-btn" id="skip-btn">SKIP</button>
+      <div class="ctrl-row">
+        <button class="ctrl-btn" id="pause-btn">⏸ PAUSE</button>
+        <button class="ctrl-btn ctrl-stop" id="stop-btn">✕ STOP</button>
+        <button class="skip-btn" id="skip-btn">SKIP →</button>
+      </div>
       <button class="done-btn done-gold" id="done-btn">DONE SET</button>
       <div class="upnext" id="upnext">
         <div class="upnext-title">UP NEXT</div>
@@ -347,7 +355,7 @@ const WARMUP = [
     cue: '4 seconds IN, 6–8 seconds OUT. Belly expands, back stays flat. Tailbone tucked (posterior pelvic tilt).' },
   { id: 'wB', name: 'Chin Tucks', sub: '',
     muscles: 'Deep neck flexors',
-    sets: 1, repsLabel: '10 reps × 3s hold', timeSec: 30, restSec: 0,
+    sets: 1, repsLabel: '10 reps × 3s hold', restSec: 0,
     cue: 'Slide head straight back — no tilting. 3-second hold each rep. Like pushing your head through a wall.' },
   { id: 'wC', name: 'Thoracic Cat-Cow', sub: '',
     muscles: 'Thoracic extensors · multifidus',
@@ -368,8 +376,9 @@ const DAYS = {
 let S = {
   day: 1, week: 1,
   steps: [], idx: 0, currentSet: 1,
-  phase: 'idle', // idle | active | resting | complete
+  phase: 'idle', // idle | active | resting | paused | complete
   timerSec: 0, timerMax: 0,
+  pausedTimerSec: 0,
   interval: null, restInterval: null,
   guidedRunning: false, guidedTimeout: null,
   startTime: null, doneSets: 0, doneExercises: 0,
@@ -584,6 +593,8 @@ function init() {
   });
   $('done-btn').addEventListener('click', onDone);
   $('skip-btn').addEventListener('click', onSkip);
+  $('pause-btn').addEventListener('click', onPause);
+  $('stop-btn').addEventListener('click', () => { clearTimers(); releaseWakeLock(); showView('home'); });
   $('back-btn').addEventListener('click', () => { clearTimers(); releaseWakeLock(); showView('home'); });
   $('week-btn').addEventListener('click', onWeekComplete);
 
@@ -677,11 +688,15 @@ async function announceAndRenderStep() {
   // Special warmup guided flows
   if (step.type === 'warmup' && ex.id === 'wA') {
     // Diaphragmatic Breathing: 10 breaths, 4s inhale, 6s exhale
-    if (S.audioMode === 'voice') await speakPromise('Begin. Breathe in through your nose.', false);
+    if (S.audioMode === 'voice') await speakPromise('Begin. Belly breathing. In through the nose.', false);
     startGuidedBreathing(10, 4, 6, () => onTimerDone());
+  } else if (step.type === 'warmup' && ex.id === 'wB') {
+    // Chin Tucks: 10 reps, 3s hold each
+    if (S.audioMode === 'voice') await speakPromise('Begin. Chin tucks. Slide back and hold.', false);
+    startGuidedReps(10, 3, () => onTimerDone());
   } else if (step.type === 'warmup' && ex.id === 'wC') {
     // Thoracic Cat-Cow: 10 cycles, ~4s each
-    if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow.', false);
+    if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow. Mid-back only.', false);
     startGuidedReps(10, 4, () => onTimerDone());
   } else if (timeSec && !perSide) {
     startCountdown(timeSec, () => onTimerDone());
@@ -749,19 +764,13 @@ function renderStep(step) {
   } else {
     doneBtn.className = 'done-btn done-gold';
   }
-  const isGuidedWarmup = isWarmup && (ex.id === 'wA' || ex.id === 'wC');
-  doneBtn.textContent = (isWarmup && !ex.timeSec && !ex.perSide && !isGuidedWarmup) ? 'DONE' : 'DONE SET';
+  doneBtn.textContent = 'DONE SET';
 
   // Timer display — show static label only; actual timers started by announceAndRenderStep
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
-  const isGuidedBreath = step.type === 'warmup' && ex.id === 'wA';
-  const isGuidedRep    = step.type === 'warmup' && ex.id === 'wC';
-  if (isGuidedBreath) {
-    setRing(1);
-    $('timer-num').textContent = '1';
-    $('timer-unit').textContent = 'OF 10';
-  } else if (isGuidedRep) {
+  const isGuidedWarmupTimer = step.type === 'warmup' && (ex.id === 'wA' || ex.id === 'wB' || ex.id === 'wC');
+  if (isGuidedWarmupTimer) {
     setRing(1);
     $('timer-num').textContent = '1';
     $('timer-unit').textContent = 'OF 10';
@@ -951,10 +960,11 @@ function onTimerDone() {
   markCurrentDotDone(isRight);
 
   if (S.currentSet >= sets) {
+    // All sets done
     S.doneSets += sets;
     if (step.type === 'bilateral') S.doneExercises++;
     doneBeep();
-    if (S.audioMode === 'voice') speakPromise('Set complete.', true).then(advanceStep);
+    if (S.audioMode === 'voice') speakPromise('Exercise complete.', true).then(advanceStep);
     else setTimeout(advanceStep, 800);
   } else {
     const restSec = ex.restSec || 0;
@@ -965,9 +975,10 @@ function onTimerDone() {
       S.currentSet++;
       renderSetDots(sets, S.currentSet, isRight);
       const perSide = !isRight && !!ex.perSide;
-      if (ex.timeSec && !perSide) {
-        if (S.audioMode === 'voice') speakPromise('Begin', true).then(() => startCountdown(ex.timeSec, onTimerDone));
-        else startCountdown(ex.timeSec, onTimerDone);
+      const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+      if (timeSec && !perSide) {
+        if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(() => startCountdown(timeSec, onTimerDone));
+        else startCountdown(timeSec, onTimerDone);
       } else if (perSide) {
         startSideTimer(ex.sideSec || 30);
       }
@@ -985,15 +996,19 @@ function afterRest() {
   const ex      = step.ex;
   const sets    = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
 
-  S.currentSet++;
-  renderSetDots(sets, S.currentSet, isRight);
+  // Increment BEFORE renderStep (which resets currentSet to 1)
+  const nextSet = S.currentSet + 1;
 
-  // Restore session UI
+  // Restore session UI without resetting set dots
   renderStep(step);
+
+  // Now restore correct set number after renderStep reset it
+  S.currentSet = nextSet;
+  renderSetDots(sets, S.currentSet, isRight);
 
   // Announce and restart timer
   if (S.audioMode === 'voice') {
-    speakPromise('Begin', true).then(() => {
+    speakPromise(`Set ${S.currentSet}. Begin.`, true).then(() => {
       const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
       const perSide = !isRight && !!ex.perSide;
       if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
@@ -1010,6 +1025,37 @@ function afterRest() {
   }
 }
 
+function startRestTimerFrom(sec) {
+  clearTimers();
+  S.phase = 'resting';
+  $('session').classList.add('resting');
+  $('phase-badge').textContent = 'REST';
+  $('phase-badge').className = 'phase-badge badge-rest';
+  $('done-btn').className = 'done-btn done-ghost';
+  $('done-btn').textContent = 'SKIP REST';
+  $('done-btn').disabled = false;
+
+  setRing(sec / S.timerMax || 1);
+  S.timerSec = sec;
+  $('timer-num').textContent = sec;
+  $('timer-unit').textContent = 'SEC';
+
+  S.restInterval = setInterval(() => {
+    S.timerSec--;
+    $('timer-num').textContent = S.timerSec;
+    setRing(S.timerSec / S.timerMax);
+    if (S.timerSec > 0 && S.timerSec <= 5) {
+      countdownBeep(S.timerSec);
+      if (S.audioMode === 'voice') speak(String(S.timerSec));
+    }
+    if (S.timerSec <= 0) {
+      clearInterval(S.restInterval); S.restInterval = null;
+      beep(880, 0.2, 'sine');
+      afterRest();
+    }
+  }, 1000);
+}
+
 function markCurrentDotDone(isRight) {
   const dots = $('set-row').querySelectorAll('.set-dot');
   if (dots[S.currentSet - 1]) {
@@ -1023,7 +1069,8 @@ function onDone() {
   const step = S.steps[S.idx];
   if (!step) { endSession(); return; }
   if (step.type === 'locked') { advanceStep(); return; }
-  if (S.phase === 'resting')  { afterRest(); return; }
+  if (S.phase === 'paused')   { return; }
+  if (S.phase === 'resting')  { clearTimers(); afterRest(); return; }
 
   const isRight = step.type === 'right-mod';
   const ex      = step.ex;
@@ -1033,16 +1080,12 @@ function onDone() {
   markCurrentDotDone(isRight);
 
   if (S.currentSet >= sets) {
+    // All sets done for this step
     S.doneSets += sets;
     if (step.type === 'bilateral') S.doneExercises++;
-    const restSec = ex.restSec || 0;
-    if (restSec > 0) {
-      setTimeout(() => startRestTimer(restSec), 300);
-    } else {
-      doneBeep();
-      if (S.audioMode === 'voice') speakPromise('Set complete.', true).then(advanceStep);
-      else setTimeout(advanceStep, 600);
-    }
+    doneBeep();
+    if (S.audioMode === 'voice') speakPromise('Exercise complete.', true).then(advanceStep);
+    else setTimeout(advanceStep, 600);
   } else {
     const restSec = ex.restSec || 0;
     if (restSec > 0) {
@@ -1050,10 +1093,42 @@ function onDone() {
     } else {
       S.currentSet++;
       renderSetDots(sets, S.currentSet, isRight);
-      if (S.audioMode === 'voice') speak('Begin');
+      if (S.audioMode === 'voice') speak(`Set ${S.currentSet}. Begin.`);
       else beep(550, 0.12);
     }
   }
+}
+
+function onPause() {
+  if (S.phase === 'paused') {
+    // Resume
+    S.phase = 'active';
+    $('pause-btn').textContent = '⏸ PAUSE';
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    const step = S.steps[S.idx];
+    if (!step) return;
+    const isRight = step.type === 'right-mod';
+    const ex = step.ex;
+    if (S.pausedTimerSec > 0) {
+      // Resume countdown from where we paused
+      const remaining = S.pausedTimerSec;
+      S.pausedTimerSec = 0;
+      if (S.phase !== 'resting') {
+        startCountdown(remaining, () => onTimerDone());
+      } else {
+        // Resume rest
+        startRestTimerFrom(remaining);
+      }
+    }
+    return;
+  }
+  if (S.phase !== 'active' && S.phase !== 'resting') return;
+  clearTimers();
+  S.pausedTimerSec = S.timerSec;
+  S.phase = 'paused';
+  $('pause-btn').textContent = '▶ RESUME';
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  speak('Paused.');
 }
 
 function onSkip() {
