@@ -250,9 +250,9 @@ const EXDB = {
   3: {
     name: 'Deep Cervical Flexor Chin Tuck Hold',
     muscles: 'Deep neck flexors',
-    sets: 3, repsLabel: '10 reps × 10s hold', timeSec: 100, restSec: 30,
-    cue: 'Lying on back, towel under neck. Tiny nod — like holding a grape with chin. No surface neck strain.',
-    rightMod: 'After EACH bilateral set, gently rotate RIGHT head while keeping chin tucked. Rotate only to mild tension — never pain.',
+    sets: 3, repsLabel: '10 reps × 10s hold', guidedRepCount: 10, guidedRepSec: 10, restSec: 30,
+    cue: 'Lying on back, towel under neck. Tiny nod — like holding a grape with chin. No surface neck strain. Each hold: 10 seconds.',
+    rightMod: 'After ALL sets, gently rotate RIGHT head while keeping chin tucked. Hold 30s. Rotate only to mild tension — never to pain.',
     rightModSets: 3, rightModTimeSec: 30,
   },
   4: {
@@ -685,19 +685,24 @@ async function announceAndRenderStep() {
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
 
-  // Special warmup guided flows
+  // Guided breathing warmup (wA)
   if (step.type === 'warmup' && ex.id === 'wA') {
-    // Diaphragmatic Breathing: 10 breaths, 4s inhale, 6s exhale
     if (S.audioMode === 'voice') await speakPromise('Begin. Belly breathing. In through the nose.', false);
     startGuidedBreathing(10, 4, 6, () => onTimerDone());
+
+  // Guided rep warmups (wB Chin Tucks, wC Cat-Cow)
   } else if (step.type === 'warmup' && ex.id === 'wB') {
-    // Chin Tucks: 10 reps, 3s hold each
     if (S.audioMode === 'voice') await speakPromise('Begin. Chin tucks. Slide back and hold.', false);
     startGuidedReps(10, 3, () => onTimerDone());
   } else if (step.type === 'warmup' && ex.id === 'wC') {
-    // Thoracic Cat-Cow: 10 cycles, ~4s each
     if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow. Mid-back only.', false);
     startGuidedReps(10, 4, () => onTimerDone());
+
+  // Generic guided rep-hold exercises (e.g. Ex 3: 10 reps × 10s hold)
+  } else if (!isRight && ex.guidedRepCount && ex.guidedRepSec) {
+    if (S.audioMode === 'voice') await speakPromise(`Begin. ${ex.guidedRepSec} seconds each hold.`, false);
+    startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
+
   } else if (timeSec && !perSide) {
     startCountdown(timeSec, () => onTimerDone());
   } else if (perSide) {
@@ -770,10 +775,11 @@ function renderStep(step) {
   const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const perSide = !isRight && !!ex.perSide;
   const isGuidedWarmupTimer = step.type === 'warmup' && (ex.id === 'wA' || ex.id === 'wB' || ex.id === 'wC');
-  if (isGuidedWarmupTimer) {
+  const isGuidedRepEx = !isRight && ex.guidedRepCount;
+  if (isGuidedWarmupTimer || isGuidedRepEx) {
     setRing(1);
     $('timer-num').textContent = '1';
-    $('timer-unit').textContent = 'OF 10';
+    $('timer-unit').textContent = `OF ${ex.guidedRepCount || 10}`;
   } else if (timeSec || perSide) {
     setRing(1);
     $('timer-num').textContent = timeSec || (ex.sideSec || 30);
@@ -974,14 +980,16 @@ function onTimerDone() {
       // No rest — go straight to next set
       S.currentSet++;
       renderSetDots(sets, S.currentSet, isRight);
-      const perSide = !isRight && !!ex.perSide;
-      const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-      if (timeSec && !perSide) {
-        if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(() => startCountdown(timeSec, onTimerDone));
-        else startCountdown(timeSec, onTimerDone);
-      } else if (perSide) {
-        startSideTimer(ex.sideSec || 30);
-      }
+      const perSide   = !isRight && !!ex.perSide;
+      const timeSec   = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+      const isGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
+      const announce  = () => {
+        if (isGuided) startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
+        else if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
+        else if (perSide) startSideTimer(ex.sideSec || 30);
+      };
+      if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(announce);
+      else announce();
     }
   }
 }
@@ -1007,21 +1015,27 @@ function afterRest() {
   renderSetDots(sets, S.currentSet, isRight);
 
   // Announce and restart timer
+  const resumeTimeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+  const resumePerSide = !isRight && !!ex.perSide;
+  const resumeGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
+
+  function doResume() {
+    if (resumeGuided) {
+      startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
+    } else if (resumeTimeSec && !resumePerSide) {
+      startCountdown(resumeTimeSec, onTimerDone);
+    } else if (resumePerSide) {
+      startSideTimer(ex.sideSec || 30);
+    } else {
+      setRing(0); $('done-btn').disabled = false;
+    }
+  }
+
   if (S.audioMode === 'voice') {
-    speakPromise(`Set ${S.currentSet}. Begin.`, true).then(() => {
-      const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-      const perSide = !isRight && !!ex.perSide;
-      if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
-      else if (perSide) startSideTimer(ex.sideSec || 30);
-      else { setRing(0); $('done-btn').disabled = false; }
-    });
+    speakPromise(`Set ${S.currentSet}. Begin.`, true).then(doResume);
   } else {
     beep(440, 0.1); setTimeout(() => beep(550, 0.12), 200);
-    const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-    const perSide = !isRight && !!ex.perSide;
-    if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
-    else if (perSide) startSideTimer(ex.sideSec || 30);
-    else { setRing(0); $('done-btn').disabled = false; }
+    doResume();
   }
 }
 
