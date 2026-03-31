@@ -435,89 +435,91 @@ function doneBeep() {
 // ── Guided breath/rep counter ──────────────────────────────────────────────────
 // Speaks each rep number, waits phaseSec between each, then calls onComplete.
 // For breathing: inhale/exhale phrased cues. For reps: just the number.
+async function runGuidedBreathingCore(reps, inhaleSec, exhaleSec, token) {
+  for (let rep = 1; rep <= reps; rep++) {
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+
+    $('timer-num').textContent = rep;
+    $('timer-unit').textContent = 'BREATH';
+    setRing(1 - (rep - 1) / reps);
+
+    if (S.audioMode === 'voice') await speakPromise(`${rep}. In`, false);
+    else beep(440, 0.1);
+
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    await delay(inhaleSec * 1000);
+
+    if (S.audioMode === 'voice') await speakPromise('Out', false);
+    else beep(330, 0.1, 'sine');
+
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    await delay(exhaleSec * 1000);
+  }
+}
+
 function startGuidedBreathing(reps, inhaleSec, exhaleSec, onComplete) {
   stopGuided();
   S.guidedRunning = true;
-
-  const totalSec = reps * (inhaleSec + exhaleSec);
-  // Show a counting timer in the ring
-  let elapsed = 0;
-  $('timer-unit').textContent = 'SEC';
-  $('done-btn').disabled = true;
-  setRing(1);
-
-  let rep = 0;
-  function nextRep() {
-    if (!S.guidedRunning) return;
-    rep++;
-    if (rep > reps) {
-      stopGuided();
-      $('done-btn').disabled = false;
-      onComplete && onComplete();
-      return;
-    }
-    $('timer-num').textContent = rep;
-    setRing(1 - (rep - 1) / reps);
-    if (S.audioMode === 'voice') {
-      speak(`${rep}. In`);
-    } else {
-      beep(440, 0.1);
-    }
-    // inhale phase
-    S.guidedTimeout = setTimeout(() => {
-      if (!S.guidedRunning) return;
-      if (S.audioMode === 'voice') speak('Out');
-      else beep(330, 0.1, 'sine');
-      // exhale phase
-      S.guidedTimeout = setTimeout(nextRep, exhaleSec * 1000);
-    }, inhaleSec * 1000);
-  }
-  nextRep();
-}
-
-// startGuidedReps: announces rep number, then hold beeps (no overlap), then next rep
-function startGuidedReps(reps, holdSec, onComplete, labelPrefix = '') {
-  stopGuided();
-  S.guidedRunning = true;
-
-  $('timer-unit').textContent = 'REPS';
-  $('done-btn').disabled = true;
-  setRing(1);
-
-  let rep = 0;
-  const token = Symbol('guided');
+  const token = Symbol('guided-breath');
   S.guidedToken = token;
 
-  async function run() {
-    while (S.guidedRunning && S.guidedToken === token && rep < reps) {
-      rep++;
-      $('timer-num').textContent = rep;
-      $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
-      setRing(1 - (rep - 1) / reps);
+  $('timer-unit').textContent = 'BREATH';
+  $('done-btn').disabled = true;
+  setRing(1);
 
-      if (S.audioMode === 'voice') {
-        await speakPromise(String(rep), false);
-      } else {
-        beep(550, 0.1);
-      }
-
-      if (!S.guidedRunning || S.guidedToken !== token) return;
-      await delay(150);
-
-      for (let s = holdSec; s > 0; s--) {
-        if (!S.guidedRunning || S.guidedToken !== token) return;
-        beep(s === 1 ? 880 : 440, 0.09, 'sine');
-        await delay(1000);
-      }
-    }
-
+  (async () => {
+    await runGuidedBreathingCore(reps, inhaleSec, exhaleSec, token);
     if (!S.guidedRunning || S.guidedToken !== token) return;
     stopGuided();
     $('done-btn').disabled = false;
     onComplete && onComplete();
-  }
+  })();
+}
 
-  run();
+async function runGuidedRepsCore(reps, holdSec, labelPrefix, token) {
+  for (let rep = 1; rep <= reps; rep++) {
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+
+    $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
+
+    // Hold cadence first: beep once per second (uniform)
+    for (let s = holdSec; s > 0; s--) {
+      if (!S.guidedRunning || S.guidedToken !== token) return;
+      beep(s === 1 ? 880 : 440, 0.09, 'sine');
+      await delay(1000);
+    }
+
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    await delay(180);
+
+    // Count after hold: "...beeps, space, count"
+    $('timer-num').textContent = rep;
+    setRing(1 - (rep - 1) / reps);
+    if (S.audioMode === 'voice') await speakPromise(String(rep), false);
+    else beep(550, 0.1);
+
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    await delay(250);
+  }
+}
+
+function startGuidedReps(reps, holdSec, onComplete, labelPrefix = '') {
+  stopGuided();
+  S.guidedRunning = true;
+  const token = Symbol('guided-reps');
+  S.guidedToken = token;
+
+  $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
+  $('done-btn').disabled = true;
+  setRing(1);
+
+  (async () => {
+    await runGuidedRepsCore(reps, holdSec || 0, labelPrefix, token);
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    stopGuided();
+    $('done-btn').disabled = false;
+    onComplete && onComplete();
+  })();
 }
 
 function startGuidedSequence(sequence, onComplete) {
@@ -527,25 +529,21 @@ function startGuidedSequence(sequence, onComplete) {
   S.guidedToken = token;
   $('done-btn').disabled = true;
 
-  let idx = 0;
-  const next = () => {
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    if (idx >= sequence.length) {
-      stopGuided();
-      $('done-btn').disabled = false;
-      onComplete && onComplete();
-      return;
-    }
-    const seg = sequence[idx++];
-    const startSeg = async () => {
-      if (S.audioMode === 'voice') await speakPromise(`${seg.label}`, false);
+  (async () => {
+    for (const seg of sequence) {
       if (!S.guidedRunning || S.guidedToken !== token) return;
-      startGuidedReps(seg.reps, seg.holdSec || 0, next, seg.label);
-    };
-    startSeg();
-  };
+      $('timer-unit').textContent = `${seg.label} · REPS`;
+      if (S.audioMode === 'voice') await speakPromise(seg.label, false);
+      if (!S.guidedRunning || S.guidedToken !== token) return;
+      await delay(200);
+      await runGuidedRepsCore(seg.reps, seg.holdSec || 0, seg.label, token);
+    }
 
-  next();
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    stopGuided();
+    $('done-btn').disabled = false;
+    onComplete && onComplete();
+  })();
 }
 
 function getAutoPlan(step) {
