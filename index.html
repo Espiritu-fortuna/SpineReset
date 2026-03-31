@@ -548,6 +548,70 @@ function startGuidedSequence(sequence, onComplete) {
   next();
 }
 
+function getAutoPlan(step) {
+  if (!step || step.type === 'locked') return { mode: 'manual' };
+  const ex = step.ex;
+  const isRight = step.type === 'right-mod';
+
+  // Warmups
+  if (step.type === 'warmup' && ex.id === 'wA') return { mode: 'breathing', reps: 10, inhale: 4, exhale: 6 };
+  if (step.type === 'warmup' && ex.id === 'wB') return { mode: 'guided', reps: 10, hold: 3 };
+  if (step.type === 'warmup' && ex.id === 'wC') return { mode: 'guided', reps: 10, hold: 4 };
+
+  // Explicit configs
+  if (!isRight && ex.guidedSequence) return { mode: 'sequence', sequence: ex.guidedSequence };
+  if (isRight && ex.rightGuidedSequence) return { mode: 'sequence', sequence: ex.rightGuidedSequence };
+  if (!isRight && ex.guidedRepCount && ex.guidedRepSec) return { mode: 'guided', reps: ex.guidedRepCount, hold: ex.guidedRepSec };
+
+  const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
+  const perSide = !isRight && !!ex.perSide;
+  if (timeSec && !perSide) return { mode: 'timed', sec: timeSec };
+  if (perSide) return { mode: 'perSideTimed', sec: ex.sideSec || 30 };
+
+  // Architecture map for rep-based flows
+  const id = step.exId;
+  const mapBilateral = {
+    2:  { mode: 'guided', reps: 10, hold: 3 },                          // Wall slides
+    4:  { mode: 'sequence', sequence: [ {label:'Left side', reps:10, holdSec:2}, {label:'Right side', reps:10, holdSec:2} ] },
+    5:  { mode: 'sequence', sequence: [ {label:'Left side', reps:8, holdSec:2},  {label:'Right side', reps:8, holdSec:2} ] },
+    7:  { mode: 'guided', reps: 12, hold: 3 },                          // Glute bridge
+    9:  { mode: 'sequence', sequence: [ {label:'Left side', reps:12, holdSec:2}, {label:'Right side', reps:12, holdSec:2} ] },
+    11: { mode: 'guided', reps: 8, hold: 5 },                           // Thoracic extension
+    13: { mode: 'sequence', sequence: [ {label:'Left side', reps:8, holdSec:5},  {label:'Right side', reps:8, holdSec:5} ] },
+    14: { mode: 'guided', reps: 10, hold: 2 },                          // Push-up plus
+  };
+
+  const mapRight = {
+    4:  { mode: 'guided', reps: 10, hold: 2 },
+    9:  { mode: 'guided', reps: 12, hold: 2 },
+    14: { mode: 'guided', reps: 10, hold: 2 },
+  };
+
+  if (!isRight && mapBilateral[id]) return mapBilateral[id];
+  if (isRight && mapRight[id]) return mapRight[id];
+
+  return { mode: 'manual' };
+}
+
+function startPlan(plan, onComplete) {
+  if (!plan || plan.mode === 'manual') {
+    setRing(0);
+    $('done-btn').disabled = false;
+    return;
+  }
+  if (plan.mode === 'breathing') {
+    startGuidedBreathing(plan.reps, plan.inhale, plan.exhale, onComplete);
+  } else if (plan.mode === 'guided') {
+    startGuidedReps(plan.reps, plan.hold, onComplete);
+  } else if (plan.mode === 'sequence') {
+    startGuidedSequence(plan.sequence, onComplete);
+  } else if (plan.mode === 'timed') {
+    startCountdown(plan.sec, onComplete);
+  } else if (plan.mode === 'perSideTimed') {
+    startSideTimer(plan.sec);
+  }
+}
+
 function stopGuided() {
   S.guidedRunning = false;
   S.guidedToken = null;
@@ -562,8 +626,8 @@ function speakPromise(text, cancel = true) {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = S.voiceRate; u.pitch = S.voicePitch; u.volume = 1;
     if (S.selectedVoice) u.voice = S.selectedVoice;
-    // Timeout fallback: mobile Chrome often drops onend — estimate duration + 800ms buffer
-    const estMs = Math.max(1200, (text.length / Math.max(0.3, S.voiceRate)) * 70 + 800);
+    // Timeout fallback: mobile Chrome often drops onend — keep tight to avoid rhythm lag
+    const estMs = Math.max(450, (text.length / Math.max(0.3, S.voiceRate)) * 60 + 300);
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
     u.onend = finish; u.onerror = finish;
@@ -756,41 +820,14 @@ async function announceAndRenderStep() {
 
     await delay(500);
 
-    // Auto-start timed exercises
-    const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-    const perSide = !isRight && !!ex.perSide;
-
-    // Guided breathing warmup (wA)
-    if (step.type === 'warmup' && ex.id === 'wA') {
-      if (S.audioMode === 'voice') await speakPromise('Begin. Belly breathing. In through the nose.', false);
-      startGuidedBreathing(10, 4, 6, () => onTimerDone());
-
-    // Guided rep warmups (wB Chin Tucks, wC Cat-Cow)
-    } else if (step.type === 'warmup' && ex.id === 'wB') {
-      if (S.audioMode === 'voice') await speakPromise('Begin. Chin tucks. Slide back and hold.', false);
-      startGuidedReps(10, 3, () => onTimerDone());
-    } else if (step.type === 'warmup' && ex.id === 'wC') {
-      if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow. Mid-back only.', false);
-      startGuidedReps(10, 4, () => onTimerDone());
-
-    // Y-T-W style structured sequence
-    } else if (!isRight && ex.guidedSequence) {
-      if (S.audioMode === 'voice') await speakPromise('Begin. Y then T then W.', false);
-      startGuidedSequence(ex.guidedSequence, () => onTimerDone());
-    } else if (isRight && ex.rightGuidedSequence) {
-      if (S.audioMode === 'voice') await speakPromise('Right side extra reps. Y then T then W.', false);
-      startGuidedSequence(ex.rightGuidedSequence, () => onTimerDone());
-
-    // Generic guided rep-hold exercises (e.g. Ex 3: 10 reps × 10s hold)
-    } else if (!isRight && ex.guidedRepCount && ex.guidedRepSec) {
-      if (S.audioMode === 'voice') await speakPromise(`Begin. ${ex.guidedRepSec} seconds each hold.`, false);
-      startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
-
-    } else if (timeSec && !perSide) {
-      startCountdown(timeSec, () => onTimerDone());
-    } else if (perSide) {
-      startSideTimer(ex.sideSec || 30);
+    const plan = getAutoPlan(step);
+    if (S.audioMode === 'voice') {
+      if (plan.mode === 'breathing') await speakPromise('Begin. Belly breathing. In through the nose.', false);
+      else if (plan.mode === 'sequence' && step.exId === 1 && !isRight) await speakPromise('Begin. Y then T then W.', false);
+      else if (plan.mode === 'sequence' && step.exId === 1 && isRight) await speakPromise('Right side extra reps. Y then T then W.', false);
+      else if (plan.mode === 'guided') await speakPromise('Begin.', false);
     }
+    startPlan(plan, () => onTimerDone());
   } finally {
     S.transitioning = false;
   }
@@ -857,20 +894,19 @@ function renderStep(step) {
   }
   doneBtn.textContent = 'DONE SET';
 
-  // Timer display — show static label only; actual timers started by announceAndRenderStep
-  const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-  const perSide = !isRight && !!ex.perSide;
-  const isGuidedWarmupTimer = step.type === 'warmup' && (ex.id === 'wA' || ex.id === 'wB' || ex.id === 'wC');
-  const isGuidedRepEx = !isRight && ex.guidedRepCount;
-  const isGuidedSeq = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
-  if (isGuidedWarmupTimer || isGuidedRepEx || isGuidedSeq) {
+  // Timer display preview based on compiled auto plan
+  const plan = getAutoPlan(step);
+  if (plan.mode === 'sequence') {
     setRing(1);
     $('timer-num').textContent = '1';
-    if (isGuidedSeq) $('timer-unit').textContent = 'Y · REPS';
-    else $('timer-unit').textContent = `OF ${ex.guidedRepCount || 10}`;
-  } else if (timeSec || perSide) {
+    $('timer-unit').textContent = `${plan.sequence[0]?.label || 'Y'} · REPS`;
+  } else if (plan.mode === 'guided' || plan.mode === 'breathing') {
     setRing(1);
-    $('timer-num').textContent = timeSec || (ex.sideSec || 30);
+    $('timer-num').textContent = '1';
+    $('timer-unit').textContent = `OF ${plan.reps || 10}`;
+  } else if (plan.mode === 'timed' || plan.mode === 'perSideTimed') {
+    setRing(1);
+    $('timer-num').textContent = plan.sec || 30;
     $('timer-unit').textContent = 'SEC';
   } else {
     setRing(0);
@@ -1068,16 +1104,8 @@ function onTimerDone() {
       // No rest — go straight to next set
       S.currentSet++;
       renderSetDots(sets, S.currentSet, isRight);
-      const perSide   = !isRight && !!ex.perSide;
-      const timeSec   = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-      const isGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
-      const isSeq     = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
-      const announce  = () => {
-        if (isSeq) startGuidedSequence(isRight ? ex.rightGuidedSequence : ex.guidedSequence, () => onTimerDone());
-        else if (isGuided) startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
-        else if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
-        else if (perSide) startSideTimer(ex.sideSec || 30);
-      };
+      const plan = getAutoPlan(step);
+      const announce  = () => startPlan(plan, () => onTimerDone());
       if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(announce);
       else announce();
     }
@@ -1104,25 +1132,9 @@ function afterRest() {
   S.currentSet = nextSet;
   renderSetDots(sets, S.currentSet, isRight);
 
-  // Announce and restart timer
-  const resumeTimeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-  const resumePerSide = !isRight && !!ex.perSide;
-  const resumeGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
-  const resumeSeq     = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
-
-  function doResume() {
-    if (resumeSeq) {
-      startGuidedSequence(isRight ? ex.rightGuidedSequence : ex.guidedSequence, () => onTimerDone());
-    } else if (resumeGuided) {
-      startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
-    } else if (resumeTimeSec && !resumePerSide) {
-      startCountdown(resumeTimeSec, onTimerDone);
-    } else if (resumePerSide) {
-      startSideTimer(ex.sideSec || 30);
-    } else {
-      setRing(0); $('done-btn').disabled = false;
-    }
-  }
+  // Announce and restart step plan
+  const plan = getAutoPlan(step);
+  const doResume = () => startPlan(plan, () => onTimerDone());
 
   if (S.audioMode === 'voice') {
     speakPromise(`Set ${S.currentSet}. Begin.`, true).then(doResume);
@@ -1202,8 +1214,10 @@ function onDone() {
     } else {
       S.currentSet++;
       renderSetDots(sets, S.currentSet, isRight);
-      if (S.audioMode === 'voice') speak(`Set ${S.currentSet}. Begin.`);
-      else beep(550, 0.12);
+      const plan = getAutoPlan(step);
+      const begin = () => startPlan(plan, () => onTimerDone());
+      if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(begin);
+      else { beep(550, 0.12); begin(); }
     }
   }
 }
