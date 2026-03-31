@@ -236,9 +236,19 @@ const EXDB = {
     name: 'Prone Y-T-W Raises',
     muscles: 'Lower/mid trapezius · serratus anterior',
     sets: 3, repsLabel: '8–10 reps (Y, T, W)', restSec: 60,
+    guidedSequence: [
+      { label: 'Y', reps: 8, holdSec: 3 },
+      { label: 'T', reps: 8, holdSec: 3 },
+      { label: 'W', reps: 8, holdSec: 3 },
+    ],
     cue: 'Face down, thumbs up. Y=130°, T=90°, W=goalpost. Squeeze blades DOWN. 3s hold at top. Never shrug.',
     rightMod: 'Do 2 EXTRA REPS with RIGHT arm only in each position (Y, T, W). Left arm stays standard.',
     rightModSets: 3,
+    rightGuidedSequence: [
+      { label: 'Right Y', reps: 2, holdSec: 3 },
+      { label: 'Right T', reps: 2, holdSec: 3 },
+      { label: 'Right W', reps: 2, holdSec: 3 },
+    ],
   },
   2: {
     name: 'Wall Slides',
@@ -465,8 +475,8 @@ function startGuidedBreathing(reps, inhaleSec, exhaleSec, onComplete) {
   nextRep();
 }
 
-// startGuidedReps: counts reps aloud, beeps each second of the hold, then next rep
-function startGuidedReps(reps, holdSec, onComplete) {
+// startGuidedReps: announces rep number, then hold beeps (no overlap), then next rep
+function startGuidedReps(reps, holdSec, onComplete, labelPrefix = '') {
   stopGuided();
   S.guidedRunning = true;
 
@@ -475,36 +485,72 @@ function startGuidedReps(reps, holdSec, onComplete) {
   setRing(1);
 
   let rep = 0;
+  const token = Symbol('guided');
+  S.guidedToken = token;
 
-  function doHoldBeeps(secsLeft, afterHold) {
-    if (!S.guidedRunning) return;
-    if (secsLeft <= 0) { afterHold(); return; }
-    // beep each second of hold
-    beep(secsLeft === 1 ? 880 : 440, 0.1, 'sine');
-    S.guidedTimeout = setTimeout(() => doHoldBeeps(secsLeft - 1, afterHold), 1000);
+  async function run() {
+    while (S.guidedRunning && S.guidedToken === token && rep < reps) {
+      rep++;
+      $('timer-num').textContent = rep;
+      $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
+      setRing(1 - (rep - 1) / reps);
+
+      if (S.audioMode === 'voice') {
+        await speakPromise(String(rep), false);
+      } else {
+        beep(550, 0.1);
+      }
+
+      if (!S.guidedRunning || S.guidedToken !== token) return;
+      await delay(150);
+
+      for (let s = holdSec; s > 0; s--) {
+        if (!S.guidedRunning || S.guidedToken !== token) return;
+        beep(s === 1 ? 880 : 440, 0.09, 'sine');
+        await delay(1000);
+      }
+    }
+
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    stopGuided();
+    $('done-btn').disabled = false;
+    onComplete && onComplete();
   }
 
-  function nextRep() {
-    if (!S.guidedRunning) return;
-    rep++;
-    if (rep > reps) {
+  run();
+}
+
+function startGuidedSequence(sequence, onComplete) {
+  stopGuided();
+  S.guidedRunning = true;
+  const token = Symbol('guided-seq');
+  S.guidedToken = token;
+  $('done-btn').disabled = true;
+
+  let idx = 0;
+  const next = () => {
+    if (!S.guidedRunning || S.guidedToken !== token) return;
+    if (idx >= sequence.length) {
       stopGuided();
       $('done-btn').disabled = false;
       onComplete && onComplete();
       return;
     }
-    $('timer-num').textContent = rep;
-    setRing(1 - (rep - 1) / reps);
-    if (S.audioMode === 'voice') speak(String(rep));
-    else beep(550, 0.1);
-    // Short pause after speaking the number, then hold beeps
-    S.guidedTimeout = setTimeout(() => doHoldBeeps(holdSec, nextRep), 600);
-  }
-  nextRep();
+    const seg = sequence[idx++];
+    const startSeg = async () => {
+      if (S.audioMode === 'voice') await speakPromise(`${seg.label}`, false);
+      if (!S.guidedRunning || S.guidedToken !== token) return;
+      startGuidedReps(seg.reps, seg.holdSec || 0, next, seg.label);
+    };
+    startSeg();
+  };
+
+  next();
 }
 
 function stopGuided() {
   S.guidedRunning = false;
+  S.guidedToken = null;
   if (S.guidedTimeout) { clearTimeout(S.guidedTimeout); S.guidedTimeout = null; }
 }
 
@@ -727,6 +773,14 @@ async function announceAndRenderStep() {
       if (S.audioMode === 'voice') await speakPromise('Begin. Cat-cow. Mid-back only.', false);
       startGuidedReps(10, 4, () => onTimerDone());
 
+    // Y-T-W style structured sequence
+    } else if (!isRight && ex.guidedSequence) {
+      if (S.audioMode === 'voice') await speakPromise('Begin. Y then T then W.', false);
+      startGuidedSequence(ex.guidedSequence, () => onTimerDone());
+    } else if (isRight && ex.rightGuidedSequence) {
+      if (S.audioMode === 'voice') await speakPromise('Right side extra reps. Y then T then W.', false);
+      startGuidedSequence(ex.rightGuidedSequence, () => onTimerDone());
+
     // Generic guided rep-hold exercises (e.g. Ex 3: 10 reps × 10s hold)
     } else if (!isRight && ex.guidedRepCount && ex.guidedRepSec) {
       if (S.audioMode === 'voice') await speakPromise(`Begin. ${ex.guidedRepSec} seconds each hold.`, false);
@@ -808,10 +862,12 @@ function renderStep(step) {
   const perSide = !isRight && !!ex.perSide;
   const isGuidedWarmupTimer = step.type === 'warmup' && (ex.id === 'wA' || ex.id === 'wB' || ex.id === 'wC');
   const isGuidedRepEx = !isRight && ex.guidedRepCount;
-  if (isGuidedWarmupTimer || isGuidedRepEx) {
+  const isGuidedSeq = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
+  if (isGuidedWarmupTimer || isGuidedRepEx || isGuidedSeq) {
     setRing(1);
     $('timer-num').textContent = '1';
-    $('timer-unit').textContent = `OF ${ex.guidedRepCount || 10}`;
+    if (isGuidedSeq) $('timer-unit').textContent = 'Y · REPS';
+    else $('timer-unit').textContent = `OF ${ex.guidedRepCount || 10}`;
   } else if (timeSec || perSide) {
     setRing(1);
     $('timer-num').textContent = timeSec || (ex.sideSec || 30);
@@ -1015,8 +1071,10 @@ function onTimerDone() {
       const perSide   = !isRight && !!ex.perSide;
       const timeSec   = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
       const isGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
+      const isSeq     = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
       const announce  = () => {
-        if (isGuided) startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
+        if (isSeq) startGuidedSequence(isRight ? ex.rightGuidedSequence : ex.guidedSequence, () => onTimerDone());
+        else if (isGuided) startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
         else if (timeSec && !perSide) startCountdown(timeSec, onTimerDone);
         else if (perSide) startSideTimer(ex.sideSec || 30);
       };
@@ -1050,9 +1108,12 @@ function afterRest() {
   const resumeTimeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
   const resumePerSide = !isRight && !!ex.perSide;
   const resumeGuided  = !isRight && ex.guidedRepCount && ex.guidedRepSec;
+  const resumeSeq     = (!isRight && ex.guidedSequence) || (isRight && ex.rightGuidedSequence);
 
   function doResume() {
-    if (resumeGuided) {
+    if (resumeSeq) {
+      startGuidedSequence(isRight ? ex.rightGuidedSequence : ex.guidedSequence, () => onTimerDone());
+    } else if (resumeGuided) {
       startGuidedReps(ex.guidedRepCount, ex.guidedRepSec, () => onTimerDone());
     } else if (resumeTimeSec && !resumePerSide) {
       startCountdown(resumeTimeSec, onTimerDone);
