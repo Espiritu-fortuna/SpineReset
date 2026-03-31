@@ -226,43 +226,41 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────────
 const CIRC = 2 * Math.PI * 96;
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
-// ─── Exercise Database ───────────────────────────────────────────────────────
 const EXDB = {
   1: {
     name: 'Prone Y-T-W Raises',
     muscles: 'Lower/mid trapezius · serratus anterior',
     sets: 1, repsLabel: 'Y(3 sets)+Right, T(3 sets)+Right, W(3 sets)+Right', restSec: 0,
-    ytwIntegrated: true,
-    guidedSequence: [
-      { label: 'Y set 1', reps: 8, holdSec: 3 },
-      { label: 'Right Y extra', reps: 2, holdSec: 3 },
-      { label: 'Y set 2', reps: 8, holdSec: 3 },
-      { label: 'Right Y extra', reps: 2, holdSec: 3 },
-      { label: 'Y set 3', reps: 8, holdSec: 3 },
-      { label: 'Right Y extra', reps: 2, holdSec: 3 },
-      { type: 'rest', sec: 60, label: 'Rest before T' },
-
-      { label: 'T set 1', reps: 8, holdSec: 3 },
-      { label: 'Right T extra', reps: 2, holdSec: 3 },
-      { label: 'T set 2', reps: 8, holdSec: 3 },
-      { label: 'Right T extra', reps: 2, holdSec: 3 },
-      { label: 'T set 3', reps: 8, holdSec: 3 },
-      { label: 'Right T extra', reps: 2, holdSec: 3 },
-      { type: 'rest', sec: 60, label: 'Rest before W' },
-
-      { label: 'W set 1', reps: 8, holdSec: 3 },
-      { label: 'Right W extra', reps: 2, holdSec: 3 },
-      { label: 'W set 2', reps: 8, holdSec: 3 },
-      { label: 'Right W extra', reps: 2, holdSec: 3 },
-      { label: 'W set 3', reps: 8, holdSec: 3 },
-      { label: 'Right W extra', reps: 2, holdSec: 3 },
-    ],
     cue: 'Order is fixed: Y then T then W. For each letter: 3 sets, each set includes RIGHT extra reps. No rest between sets or right extras. Rest 60s only between Y→T and T→W.',
     rightMod: null,
+    flow: {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'action', label: 'Y set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'Y set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'Y set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
+        { kind: 'rest', sec: 60, label: 'Rest before T' },
+        { kind: 'action', label: 'T set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'T set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'T set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
+        { kind: 'rest', sec: 60, label: 'Rest before W' },
+        { kind: 'action', label: 'W set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'W set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
+        { kind: 'action', label: 'W set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
+      ]
+    }
   },
   2: {
     name: 'Wall Slides',
@@ -274,7 +272,7 @@ const EXDB = {
   3: {
     name: 'Deep Cervical Flexor Chin Tuck Hold',
     muscles: 'Deep neck flexors',
-    sets: 3, repsLabel: '10 reps × 10s hold', guidedRepCount: 10, guidedRepSec: 10, restSec: 30,
+    sets: 3, repsLabel: '10 reps × 10s hold', restSec: 30,
     cue: 'Lying on back, towel under neck. Tiny nod — like holding a grape with chin. No surface neck strain. Each hold: 10 seconds.',
     rightMod: 'After ALL sets, gently rotate RIGHT head while keeping chin tucked. Hold 30s. Rotate only to mild tension — never to pain.',
     rightModSets: 3, rightModTimeSec: 30,
@@ -371,23 +369,15 @@ const EXDB = {
   },
 };
 
-// ─── Warmup ──────────────────────────────────────────────────────────────────
 const WARMUP = [
-  { id: 'wA', name: 'Diaphragmatic Breathing', sub: '+ Posterior Pelvic Tilt',
-    muscles: 'Diaphragm · pelvic floor',
-    sets: 1, repsLabel: '10 breaths', restSec: 0,
+  { id: 'wA', name: 'Diaphragmatic Breathing', sub: '+ Posterior Pelvic Tilt', muscles: 'Diaphragm · pelvic floor', sets: 1, repsLabel: '10 breaths', restSec: 0,
     cue: '4 seconds IN, 6–8 seconds OUT. Belly expands, back stays flat. Tailbone tucked (posterior pelvic tilt).' },
-  { id: 'wB', name: 'Chin Tucks', sub: '',
-    muscles: 'Deep neck flexors',
-    sets: 1, repsLabel: '10 reps × 3s hold', restSec: 0,
+  { id: 'wB', name: 'Chin Tucks', sub: '', muscles: 'Deep neck flexors', sets: 1, repsLabel: '10 reps × 3s hold', restSec: 0,
     cue: 'Slide head straight back — no tilting. 3-second hold each rep. Like pushing your head through a wall.' },
-  { id: 'wC', name: 'Thoracic Cat-Cow', sub: '',
-    muscles: 'Thoracic extensors · multifidus',
-    sets: 1, repsLabel: '10 cycles', restSec: 0,
+  { id: 'wC', name: 'Thoracic Cat-Cow', sub: '', muscles: 'Thoracic extensors · multifidus', sets: 1, repsLabel: '10 cycles', restSec: 0,
     cue: 'ONLY mid-back moves. Neck and lower back stay completely still throughout.' },
 ];
 
-// ─── Day Schedules ────────────────────────────────────────────────────────────
 const DAYS = {
   1: { title: 'UPPER CORRECTIVE + CORE', exercises: [1,2,3,5,6,10] },
   2: { title: 'LOWER CORRECTIVE + MOBILITY', exercises: [7,8,11,13,5,10] },
@@ -396,27 +386,25 @@ const DAYS = {
   5: { title: 'FULL INTEGRATION', exercises: [1,4,14,12,7,5,6] },
 };
 
-// ── State ──────────────────────────────────────────────────────────────────────
 let S = {
   day: 1, week: 1,
   steps: [], idx: 0, currentSet: 1,
   phase: 'idle', // idle | active | resting | paused | complete
   timerSec: 0, timerMax: 0,
+  interval: null,
   pausedTimerSec: 0,
-  interval: null, restInterval: null,
-  guidedRunning: false, guidedTimeout: null,
-  startTime: null, doneSets: 0, doneExercises: 0,
-  selectedVoice: null, voiceRate: 0.9, voicePitch: 1.0, beepVolume: 0.6,
-  audioMode: 'voice',
   pausedPhase: null,
-  transitioning: false,
+  startTime: null, doneSets: 0, doneExercises: 0,
+  selectedVoice: null, voiceRate: 0.9, voicePitch: 1.0, beepVolume: 0.6, audioMode: 'voice',
+  stepRunId: 0,
+  transitionLock: false,
+  speechChain: Promise.resolve(),
 };
 let audioCtx = null;
 let wakeLock = null;
 
 const $ = id => document.getElementById(id);
 
-// ── Audio context ──────────────────────────────────────────────────────────────
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -434,231 +422,25 @@ function beep(freq = 880, dur = 0.12, type = 'sine', vol = null) {
     gain.gain.setValueAtTime(v, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
-  } catch(e) {}
+  } catch (_) {}
 }
 
-function countdownBeep(n) {
-  const f = {5:523,4:659,3:784,2:988,1:1047};
-  beep(f[n] || 660, 0.15, 'sine');
+function countdownBeep(n) { const f = {5:523,4:659,3:784,2:988,1:1047}; beep(f[n] || 660, 0.15, 'sine'); }
+function doneBeep() { beep(1047,0.15); setTimeout(()=>beep(1319,0.15),150); setTimeout(()=>beep(1568,0.25),300); }
+
+function queueSpeak(text, { cancel = false } = {}) {
+  S.speechChain = S.speechChain.then(() => speakPromise(text, cancel));
+  return S.speechChain;
 }
 
-function doneBeep() {
-  beep(1047, 0.15); setTimeout(() => beep(1319, 0.15), 150); setTimeout(() => beep(1568, 0.25), 300);
-}
-
-// ── Guided breath/rep counter ──────────────────────────────────────────────────
-// Speaks each rep number, waits phaseSec between each, then calls onComplete.
-// For breathing: inhale/exhale phrased cues. For reps: just the number.
-async function runGuidedBreathingCore(reps, inhaleSec, exhaleSec, token) {
-  for (let rep = 1; rep <= reps; rep++) {
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-
-    $('timer-num').textContent = rep;
-    $('timer-unit').textContent = 'BREATH';
-    setRing(1 - (rep - 1) / reps);
-
-    if (S.audioMode === 'voice') await speakPromise(`${rep}. In`, false);
-    else beep(440, 0.1);
-
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    await delay(inhaleSec * 1000);
-
-    if (S.audioMode === 'voice') await speakPromise('Out', false);
-    else beep(330, 0.1, 'sine');
-
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    await delay(exhaleSec * 1000);
-  }
-}
-
-function startGuidedBreathing(reps, inhaleSec, exhaleSec, onComplete) {
-  stopGuided();
-  S.guidedRunning = true;
-  const token = Symbol('guided-breath');
-  S.guidedToken = token;
-
-  $('timer-unit').textContent = 'BREATH';
-  $('done-btn').disabled = true;
-  setRing(1);
-
-  (async () => {
-    await runGuidedBreathingCore(reps, inhaleSec, exhaleSec, token);
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    stopGuided();
-    $('done-btn').disabled = false;
-    onComplete && onComplete();
-  })();
-}
-
-async function runGuidedRepsCore(reps, holdSec, labelPrefix, token) {
-  for (let rep = 1; rep <= reps; rep++) {
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-
-    $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
-
-    // Hold cadence first: beep once per second (uniform)
-    for (let s = holdSec; s > 0; s--) {
-      if (!S.guidedRunning || S.guidedToken !== token) return;
-      beep(s === 1 ? 880 : 440, 0.09, 'sine');
-      await delay(1000);
-    }
-
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    await delay(180);
-
-    // Count after hold: "...beeps, space, count"
-    $('timer-num').textContent = rep;
-    setRing(1 - (rep - 1) / reps);
-    if (S.audioMode === 'voice') await speakPromise(String(rep), false);
-    else beep(550, 0.1);
-
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    await delay(250);
-  }
-}
-
-function startGuidedReps(reps, holdSec, onComplete, labelPrefix = '') {
-  stopGuided();
-  S.guidedRunning = true;
-  const token = Symbol('guided-reps');
-  S.guidedToken = token;
-
-  $('timer-unit').textContent = labelPrefix ? `${labelPrefix} · REPS` : 'REPS';
-  $('done-btn').disabled = true;
-  setRing(1);
-
-  (async () => {
-    await runGuidedRepsCore(reps, holdSec || 0, labelPrefix, token);
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    stopGuided();
-    $('done-btn').disabled = false;
-    onComplete && onComplete();
-  })();
-}
-
-function startGuidedSequence(sequence, onComplete) {
-  stopGuided();
-  S.guidedRunning = true;
-  const token = Symbol('guided-seq');
-  S.guidedToken = token;
-  $('done-btn').disabled = true;
-
-  (async () => {
-    for (const seg of sequence) {
-      if (!S.guidedRunning || S.guidedToken !== token) return;
-
-      if (seg.type === 'rest') {
-        $('timer-unit').textContent = 'SEC';
-        if (S.audioMode === 'voice') await speakPromise(seg.label || `Rest ${seg.sec} seconds`, false);
-        for (let t = seg.sec; t > 0; t--) {
-          if (!S.guidedRunning || S.guidedToken !== token) return;
-          $('timer-num').textContent = t;
-          setRing(t / seg.sec);
-          if (t <= 5) {
-            countdownBeep(t);
-            if (S.audioMode === 'voice') speak(String(t));
-          }
-          await delay(1000);
-        }
-        beep(880, 0.15, 'sine');
-        await delay(200);
-        continue;
-      }
-
-      $('timer-unit').textContent = `${seg.label} · REPS`;
-      if (S.audioMode === 'voice') await speakPromise(seg.label, false);
-      if (!S.guidedRunning || S.guidedToken !== token) return;
-      await delay(200);
-      await runGuidedRepsCore(seg.reps, seg.holdSec || 0, seg.label, token);
-    }
-
-    if (!S.guidedRunning || S.guidedToken !== token) return;
-    stopGuided();
-    $('done-btn').disabled = false;
-    onComplete && onComplete();
-  })();
-}
-
-function getAutoPlan(step) {
-  if (!step || step.type === 'locked') return { mode: 'manual' };
-  const ex = step.ex;
-  const isRight = step.type === 'right-mod';
-
-  // Warmups
-  if (step.type === 'warmup' && ex.id === 'wA') return { mode: 'breathing', reps: 10, inhale: 4, exhale: 6 };
-  if (step.type === 'warmup' && ex.id === 'wB') return { mode: 'guided', reps: 10, hold: 3 };
-  if (step.type === 'warmup' && ex.id === 'wC') return { mode: 'guided', reps: 10, hold: 4 };
-
-  // Explicit configs
-  if (!isRight && ex.guidedSequence) return { mode: 'sequence', sequence: ex.guidedSequence };
-  if (isRight && ex.rightGuidedSequence) return { mode: 'sequence', sequence: ex.rightGuidedSequence };
-  if (!isRight && ex.guidedRepCount && ex.guidedRepSec) return { mode: 'guided', reps: ex.guidedRepCount, hold: ex.guidedRepSec };
-
-  const timeSec = isRight ? (ex.rightModTimeSec || null) : (ex.timeSec || null);
-  const perSide = !isRight && !!ex.perSide;
-  if (timeSec && !perSide) return { mode: 'timed', sec: timeSec };
-  if (perSide) return { mode: 'perSideTimed', sec: ex.sideSec || 30 };
-
-  // Architecture map for rep-based flows
-  const id = step.exId;
-  const mapBilateral = {
-    2:  { mode: 'guided', reps: 10, hold: 6 },                          // Wall slides (3s up/3s down cadence)
-    4:  { mode: 'sequence', sequence: [ {label:'Left side', reps:10, holdSec:2}, {label:'Right side', reps:10, holdSec:2} ] },
-    5:  { mode: 'sequence', sequence: [ {label:'Left side', reps:8, holdSec:2},  {label:'Right side', reps:8, holdSec:2} ] },
-    7:  { mode: 'guided', reps: 12, hold: 3 },                          // Glute bridge
-    9:  { mode: 'sequence', sequence: [ {label:'Left side', reps:12, holdSec:2}, {label:'Right side', reps:12, holdSec:2} ] },
-    11: { mode: 'guided', reps: 8, hold: 5 },                           // Thoracic extension
-    13: { mode: 'sequence', sequence: [ {label:'Left side', reps:8, holdSec:5},  {label:'Right side', reps:8, holdSec:5} ] },
-    14: { mode: 'guided', reps: 10, hold: 2 },                          // Push-up plus
-  };
-
-  const mapRight = {
-    4:  { mode: 'guided', reps: 10, hold: 2 },
-    9:  { mode: 'guided', reps: 12, hold: 2 },
-    14: { mode: 'guided', reps: 10, hold: 2 },
-  };
-
-  if (!isRight && mapBilateral[id]) return mapBilateral[id];
-  if (isRight && mapRight[id]) return mapRight[id];
-
-  return { mode: 'manual' };
-}
-
-function startPlan(plan, onComplete) {
-  if (!plan || plan.mode === 'manual') {
-    setRing(0);
-    $('done-btn').disabled = false;
-    return;
-  }
-  if (plan.mode === 'breathing') {
-    startGuidedBreathing(plan.reps, plan.inhale, plan.exhale, onComplete);
-  } else if (plan.mode === 'guided') {
-    startGuidedReps(plan.reps, plan.hold, onComplete);
-  } else if (plan.mode === 'sequence') {
-    startGuidedSequence(plan.sequence, onComplete);
-  } else if (plan.mode === 'timed') {
-    startCountdown(plan.sec, onComplete);
-  } else if (plan.mode === 'perSideTimed') {
-    startSideTimer(plan.sec);
-  }
-}
-
-function stopGuided() {
-  S.guidedRunning = false;
-  S.guidedToken = null;
-  if (S.guidedTimeout) { clearTimeout(S.guidedTimeout); S.guidedTimeout = null; }
-}
-
-// ── Voice ──────────────────────────────────────────────────────────────────────
-function speakPromise(text, cancel = true) {
+function speakPromise(text, cancel = false) {
   return new Promise(resolve => {
     if (!window.speechSynthesis || S.audioMode !== 'voice') { resolve(); return; }
     if (cancel) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = S.voiceRate; u.pitch = S.voicePitch; u.volume = 1;
     if (S.selectedVoice) u.voice = S.selectedVoice;
-    // Timeout fallback: mobile Chrome often drops onend — keep tight to avoid rhythm lag
-    const estMs = Math.max(450, (text.length / Math.max(0.3, S.voiceRate)) * 60 + 300);
+    const estMs = Math.max(500, (text.length / Math.max(0.35, S.voiceRate)) * 65 + 320);
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
     u.onend = finish; u.onerror = finish;
@@ -667,111 +449,37 @@ function speakPromise(text, cancel = true) {
   });
 }
 
-let _lastNoWaitSpeechAt = 0;
-function speak(text) {
-  if (!window.speechSynthesis || S.audioMode !== 'voice') return;
-  const now = Date.now();
-  if (now - _lastNoWaitSpeechAt < 700) return;
-  if (speechSynthesis.speaking || speechSynthesis.pending) return;
-  _lastNoWaitSpeechAt = now;
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = S.voiceRate; u.pitch = S.voicePitch; u.volume = 1;
-  if (S.selectedVoice) u.voice = S.selectedVoice;
-  speechSynthesis.speak(u);
-}
-
 function initVoices() {
-  const populate = () => {
+  const load = () => {
     const all = speechSynthesis.getVoices();
     if (!all.length) return;
-    const preferred = all.filter(v => v.lang.startsWith('en') && !v.name.toLowerCase().includes('zira'));
-    const list = preferred.length ? preferred : all;
     const saved = JSON.parse(localStorage.getItem('sr_global') || '{}');
-    const restored = saved.voiceName ? all.find(v => v.name === saved.voiceName) : null;
-    S.selectedVoice = restored
+    S.selectedVoice = (saved.voiceName && all.find(v => v.name === saved.voiceName))
       || all.find(v => v.name === 'Google UK English Female')
       || all.find(v => v.name === 'Google US English')
-      || list.find(v => !v.localService)
-      || list[0] || null;
+      || all.find(v => v.lang.startsWith('en'))
+      || all[0] || null;
   };
-  speechSynthesis.addEventListener('voiceschanged', populate);
-  populate();
+  speechSynthesis.addEventListener('voiceschanged', load);
+  load();
 }
 
-// ── Wake lock ──────────────────────────────────────────────────────────────────
 async function acquireWakeLock() {
   if (!('wakeLock' in navigator)) return;
   try {
     if (wakeLock) return;
     wakeLock = await navigator.wakeLock.request('screen');
     wakeLock.addEventListener('release', () => { wakeLock = null; });
-  } catch(e) {}
+  } catch (_) {}
 }
-function releaseWakeLock() {
-  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-}
+function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; } }
 
-// ── UI helpers ─────────────────────────────────────────────────────────────────
-function showView(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  $(id).classList.add('active');
-}
+function showView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); $(id).classList.add('active'); }
+function setRing(frac) { $('ring-arc').style.strokeDashoffset = CIRC * (1 - Math.min(1, Math.max(0, frac))); }
+function clearTimers() { if (S.interval) { clearInterval(S.interval); S.interval = null; } }
+function cancelRun() { S.stepRunId++; clearTimers(); if (window.speechSynthesis) speechSynthesis.cancel(); }
 
-function setRing(frac) {
-  $('ring-arc').style.strokeDashoffset = CIRC * (1 - Math.min(1, Math.max(0, frac)));
-}
-
-function clearTimers() {
-  if (S.interval)     { clearInterval(S.interval);     S.interval = null; }
-  if (S.restInterval) { clearInterval(S.restInterval); S.restInterval = null; }
-  stopGuided();
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────────
-function init() {
-  S.week = parseInt(localStorage.getItem('sr_week') || '1');
-  S.day  = parseInt(localStorage.getItem('sr_day')  || '1');
-  const g = JSON.parse(localStorage.getItem('sr_global') || '{}');
-  S.voiceRate  = g.voiceRate  ?? 0.9;
-  S.voicePitch = g.voicePitch ?? 1.0;
-  S.beepVolume = g.beepVolume ?? 0.6;
-  S.audioMode  = g.audioMode  ?? 'voice';
-
-  $('ring-arc').style.strokeDasharray = CIRC;
-  setRing(0);
-
-  updateWeekBadge();
-  renderDayCards();
-
-  $('week-badge').addEventListener('click', () => {
-    S.week = (S.week % 12) + 1;
-    localStorage.setItem('sr_week', S.week);
-    updateWeekBadge();
-  });
-  $('start-btn').addEventListener('click', async () => {
-    getAudioCtx();
-    await acquireWakeLock();
-    startSession();
-  });
-  $('done-btn').addEventListener('click', onDone);
-  $('skip-btn').addEventListener('click', onSkip);
-  $('pause-btn').addEventListener('click', onPause);
-  $('stop-btn').addEventListener('click', () => { clearTimers(); releaseWakeLock(); showView('home'); });
-  $('back-btn').addEventListener('click', () => { clearTimers(); releaseWakeLock(); showView('home'); });
-  $('week-btn').addEventListener('click', onWeekComplete);
-
-  if (window.speechSynthesis) initVoices();
-
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && (S.phase === 'active' || S.phase === 'resting')) {
-      await acquireWakeLock();
-    }
-  });
-}
-
-function updateWeekBadge() {
-  $('week-badge').textContent = `WEEK ${S.week}`;
-}
+function updateWeekBadge() { $('week-badge').textContent = `WEEK ${S.week}`; }
 
 function renderDayCards() {
   const grid = $('day-grid');
@@ -780,42 +488,119 @@ function renderDayCards() {
     const card = document.createElement('div');
     card.className = 'day-card' + (d === S.day ? ' selected' : '');
     card.innerHTML = `<span class="day-num">${d}</span><div class="day-info"><div class="day-label">DAY ${d}</div><div class="day-title">${DAYS[d].title}</div></div>`;
-    card.addEventListener('click', () => {
-      S.day = d;
-      localStorage.setItem('sr_day', d);
-      renderDayCards();
-    });
+    card.addEventListener('click', () => { S.day = d; localStorage.setItem('sr_day', d); renderDayCards(); });
     grid.appendChild(card);
   }
 }
 
-// ─── Build Steps ──────────────────────────────────────────────────────────────
-function buildSteps(day) {
-  const steps = [];
+function buildFlow(step) {
+  if (step.type === 'locked') return { kind: 'manual' };
+  const ex = step.ex;
+  const isRight = step.type === 'right-mod';
 
-  // Warmup (always 3)
-  for (const w of WARMUP) {
-    steps.push({ type: 'warmup', ex: w });
+  if (step.type === 'warmup' && ex.id === 'wA') return { kind: 'timedBreathing', reps: 10, inhaleSec: 4, exhaleSec: 6 };
+  if (step.type === 'warmup' && ex.id === 'wB') return { kind: 'repsHold', reps: 10, holdSec: 3 };
+  if (step.type === 'warmup' && ex.id === 'wC') return { kind: 'repsHold', reps: 10, holdSec: 4 };
+
+  if (!isRight && ex.flow) return ex.flow;
+  if (isRight && ex.rightFlow) return ex.rightFlow;
+
+  if ((isRight ? ex.rightModTimeSec : ex.timeSec)) {
+    return { kind: 'timed', sec: isRight ? ex.rightModTimeSec : ex.timeSec };
   }
 
+  if (ex.perSide) {
+    if (ex.sideSec) return { kind: 'perSideTimed', sec: ex.sideSec };
+    return { kind: 'perSideRepsHold', reps: 8, holdSec: 2 };
+  }
+
+  const mapMain = {
+    2: { kind: 'repsHold', reps: 10, holdSec: 6 }, // Wall slides: 3s up + 3s down
+    3: { kind: 'repsHold', reps: 10, holdSec: 10 },
+    4: { kind: 'perSideRepsHold', reps: 10, holdSec: 2 },
+    5: { kind: 'perSideRepsHold', reps: 8, holdSec: 2 },
+    7: { kind: 'repsHold', reps: 12, holdSec: 3 },
+    9: { kind: 'perSideRepsHold', reps: 12, holdSec: 2 },
+    11:{ kind: 'repsHold', reps: 8, holdSec: 5 },
+    13:{ kind: 'perSideRepsHold', reps: 8, holdSec: 5 },
+    14:{ kind: 'repsHold', reps: 10, holdSec: 2 },
+  };
+  const mapRight = {
+    4: { kind: 'repsHold', reps: 10, holdSec: 2 },
+    9: { kind: 'repsHold', reps: 12, holdSec: 2 },
+    14:{ kind: 'repsHold', reps: 10, holdSec: 2 },
+  };
+
+  return isRight ? (mapRight[step.exId] || { kind:'manual' }) : (mapMain[step.exId] || { kind:'manual' });
+}
+
+function buildSteps(day) {
+  const steps = [];
+  for (const w of WARMUP) steps.push({ type: 'warmup', ex: w, flow: buildFlow({ type: 'warmup', ex: w }) });
   for (const exId of DAYS[day].exercises) {
     if (exId === 15 && S.week < 3) {
-      // Locked: show card + extra bird dog
-      steps.push({ type: 'locked', exId: 15 });
-      steps.push({ type: 'bilateral', exId: 13, ex: { ...EXDB[13], sets: 1, repsLabel: '8 per side × 5s hold (EXTRA — replaces Side Plank)' } });
-    } else {
-      const ex = EXDB[exId];
-      steps.push({ type: 'bilateral', exId, ex });
-      if (ex.rightMod) {
-        steps.push({ type: 'right-mod', exId, ex });
-      }
+      steps.push({ type: 'locked', exId: 15, flow: { kind: 'manual' } });
+      const ex = { ...EXDB[13], sets: 1, repsLabel: '8 per side × 5s hold (EXTRA — replaces Side Plank)' };
+      const step = { type:'bilateral', exId:13, ex }; step.flow = buildFlow(step); steps.push(step);
+      continue;
+    }
+    const ex = EXDB[exId];
+    const main = { type:'bilateral', exId, ex }; main.flow = buildFlow(main); steps.push(main);
+    if (ex.rightMod) {
+      const right = { type:'right-mod', exId, ex }; right.flow = buildFlow(right); steps.push(right);
     }
   }
   return steps;
 }
 
-// ─── Start Session ────────────────────────────────────────────────────────────
+function init() {
+  S.week = parseInt(localStorage.getItem('sr_week') || '1', 10);
+  S.day = parseInt(localStorage.getItem('sr_day') || '1', 10);
+  const g = JSON.parse(localStorage.getItem('sr_global') || '{}');
+  S.voiceRate = g.voiceRate ?? 0.9;
+  S.voicePitch = g.voicePitch ?? 1.0;
+  S.beepVolume = g.beepVolume ?? 0.6;
+  S.audioMode = g.audioMode ?? 'voice';
+
+  $('ring-arc').style.strokeDasharray = CIRC;
+  setRing(0);
+  updateWeekBadge();
+  renderDayCards();
+
+  $('week-badge').addEventListener('click', () => {
+    S.week = (S.week % 12) + 1;
+    localStorage.setItem('sr_week', S.week);
+    updateWeekBadge();
+  });
+  $('start-btn').addEventListener('click', async () => { getAudioCtx(); await acquireWakeLock(); startSession(); });
+  $('done-btn').addEventListener('click', onDone);
+  $('skip-btn').addEventListener('click', onSkip);
+  $('pause-btn').addEventListener('click', onPause);
+  $('stop-btn').addEventListener('click', () => { stopSessionToHome(); });
+  $('back-btn').addEventListener('click', () => { stopSessionToHome(); });
+  $('week-btn').addEventListener('click', onWeekComplete);
+
+  if (window.speechSynthesis) initVoices();
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && (S.phase === 'active' || S.phase === 'resting' || S.phase === 'paused')) {
+      await acquireWakeLock();
+    }
+    if (document.visibilityState === 'hidden' && wakeLock) {
+      // Browser may auto-release; keep handler lightweight.
+    }
+  });
+}
+
+function stopSessionToHome() {
+  cancelRun();
+  releaseWakeLock();
+  S.phase = 'idle';
+  showView('home');
+}
+
 function startSession() {
+  cancelRun();
   S.steps = buildSteps(S.day);
   S.idx = 0;
   S.currentSet = 1;
@@ -824,132 +609,91 @@ function startSession() {
   S.startTime = Date.now();
   S.phase = 'active';
   showView('session');
-  announceAndRenderStep();
+  enterStep();
 }
 
-async function announceAndRenderStep() {
-  S.transitioning = true;
+async function enterStep() {
+  if (S.transitionLock) return;
+  S.transitionLock = true;
   try {
-    clearTimers();
+    cancelRun();
     const step = S.steps[S.idx];
     if (!step) { endSession(); return; }
-
+    S.phase = 'active';
+    S.currentSet = 1;
     renderStep(step);
 
     if (step.type === 'locked') return;
 
-    const ex = step.ex;
-    const isRight = step.type === 'right-mod';
-
-    // Announce exercise name
     if (S.audioMode === 'voice') {
-      const phrase = isRight ? `Right side. ${ex.name}` : ex.name;
-      await speakPromise(phrase, true);
-    } else {
-      beep(440, 0.1); await delay(200); beep(550, 0.15);
+      const intro = step.type === 'right-mod' ? `Right side. ${step.ex.name}` : step.ex.name;
+      await queueSpeak(intro, { cancel: true });
+      await wait(180);
+      if (step.flow.kind === 'timedBreathing') await queueSpeak('Begin. Inhale then exhale smoothly.', { cancel: false });
+      else if (step.exId === 1) await queueSpeak('Begin. Y then T then W.', { cancel: false });
+      else await queueSpeak('Begin.', { cancel: false });
     }
 
-    await delay(500);
-
-    const plan = getAutoPlan(step);
-    if (S.audioMode === 'voice') {
-      if (plan.mode === 'breathing') await speakPromise('Begin. Belly breathing. In through the nose.', false);
-      else if (plan.mode === 'sequence' && step.exId === 1 && !isRight) await speakPromise('Begin. Y then T then W.', false);
-      else if (plan.mode === 'sequence' && step.exId === 1 && isRight) await speakPromise('Right side extra reps. Y then T then W.', false);
-      else if (plan.mode === 'guided') await speakPromise('Begin.', false);
-    }
-    startPlan(plan, () => onTimerDone());
+    runCurrentSet();
   } finally {
-    S.transitioning = false;
+    S.transitionLock = false;
   }
 }
 
-// ─── Render Step (UI only — no timers, no button state changes) ───────────────
 function renderStep(step) {
   $('session').classList.remove('resting', 'right-active');
   $('done-btn').disabled = false;
+  if (step.type === 'locked') { renderLocked(); return; }
 
-  if (step.type === 'locked') {
-    renderLocked();
-    return;
-  }
-
-  const isRight  = step.type === 'right-mod';
+  const ex = step.ex;
+  const isRight = step.type === 'right-mod';
   const isWarmup = step.type === 'warmup';
-  const ex       = step.ex;
-  const sets     = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
+  const totalSets = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
 
-  // Phase badge
-  const badge  = $('phase-badge');
-  const nameEl = $('ex-name');
+  const badge = $('phase-badge');
+  const name = $('ex-name');
   if (isWarmup) {
-    const wi = WARMUP.indexOf(ex);
-    badge.textContent = `WARM-UP ${wi + 1} OF 3`;
+    badge.textContent = `WARM-UP ${WARMUP.indexOf(ex) + 1} OF 3`;
     badge.className = 'phase-badge badge-warmup';
-    nameEl.className = 'ex-name name-standard';
+    name.className = 'ex-name name-standard';
   } else if (isRight) {
     badge.textContent = 'RIGHT SIDE +';
     badge.className = 'phase-badge badge-right';
-    nameEl.className = 'ex-name name-right';
+    name.className = 'ex-name name-right';
     $('session').classList.add('right-active');
   } else {
-    const exIdx   = S.steps.slice(0, S.idx + 1).filter(s => s.type === 'bilateral').length;
+    const exIdx = S.steps.slice(0, S.idx + 1).filter(s => s.type === 'bilateral').length;
     const exTotal = S.steps.filter(s => s.type === 'bilateral').length;
     badge.textContent = `EXERCISE ${exIdx} OF ${exTotal}`;
     badge.className = 'phase-badge badge-bilateral';
-    nameEl.className = 'ex-name name-standard';
+    name.className = 'ex-name name-standard';
   }
 
-  nameEl.textContent = ex.name;
+  name.textContent = ex.name;
   $('ex-muscles').textContent = ex.muscles || '';
+  $('cue-card').className = isRight ? 'cue-card cue-right' : 'cue-card';
+  $('cue-text').textContent = isRight ? ex.rightMod : ex.cue;
 
-  // Cue card
-  if (isRight) {
-    $('cue-card').className = 'cue-card cue-right';
-    $('cue-text').textContent = ex.rightMod;
-  } else {
-    $('cue-card').className = 'cue-card';
-    $('cue-text').textContent = ex.cue;
-  }
-
-  // Set dots — always start at set 1 when entering new step
-  S.currentSet = 1;
-  renderSetDots(sets, 1, isRight);
-
-  // Done button
-  const doneBtn = $('done-btn');
-  if (isRight) {
-    doneBtn.className = 'done-btn done-purple';
-  } else {
-    doneBtn.className = 'done-btn done-gold';
-  }
-  doneBtn.textContent = 'DONE SET';
-
-  // Timer display preview based on compiled auto plan
-  const plan = getAutoPlan(step);
-  if (plan.mode === 'sequence') {
-    setRing(1);
-    $('timer-num').textContent = '1';
-    $('timer-unit').textContent = `${plan.sequence[0]?.label || 'Y'} · REPS`;
-  } else if (plan.mode === 'guided' || plan.mode === 'breathing') {
-    setRing(1);
-    $('timer-num').textContent = '1';
-    $('timer-unit').textContent = `OF ${plan.reps || 10}`;
-  } else if (plan.mode === 'timed' || plan.mode === 'perSideTimed') {
-    setRing(1);
-    $('timer-num').textContent = plan.sec || 30;
-    $('timer-unit').textContent = 'SEC';
-  } else {
-    setRing(0);
-    $('timer-num').textContent = firstNum(ex.repsLabel);
-    $('timer-unit').textContent = 'REPS';
-  }
-
+  renderSetDots(totalSets, S.currentSet, isRight);
+  $('done-btn').className = `done-btn ${isRight ? 'done-purple' : 'done-gold'}`;
+  $('done-btn').textContent = 'DONE SET';
+  previewFlow(step.flow);
   renderUpNext();
 }
 
+function previewFlow(flow) {
+  if (!flow || flow.kind === 'manual') { setRing(0); $('timer-num').textContent = '—'; $('timer-unit').textContent = 'REPS'; return; }
+  if (flow.kind === 'sequence') {
+    setRing(1); $('timer-num').textContent = '1'; $('timer-unit').textContent = `${flow.blocks[0]?.label || 'BLOCK'} · REPS`; return;
+  }
+  if (flow.kind === 'timed' || flow.kind === 'perSideTimed') {
+    setRing(1); $('timer-num').textContent = flow.sec; $('timer-unit').textContent = 'SEC'; return;
+  }
+  setRing(1); $('timer-num').textContent = '1'; $('timer-unit').textContent = flow.kind === 'timedBreathing' ? 'BREATH' : 'REPS';
+}
+
 function renderLocked() {
-  $('phase-badge').textContent = `LOCKED — WEEK 3+`;
+  $('phase-badge').textContent = 'LOCKED — WEEK 3+';
   $('phase-badge').className = 'phase-badge badge-locked';
   $('ex-name').textContent = 'Side Plank';
   $('ex-name').className = 'ex-name name-standard';
@@ -965,27 +709,27 @@ function renderLocked() {
   $('done-btn').textContent = 'CONTINUE';
   $('done-btn').disabled = false;
   renderUpNext();
-  speak('Side plank locked. Tap continue for extra bird dog.');
-}
-
-function firstNum(str) {
-  if (!str) return '—';
-  const m = str.match(/\d+/);
-  return m ? m[0] : '—';
 }
 
 function renderSetDots(total, current, isRight) {
-  const row   = $('set-row');
+  const row = $('set-row');
   const label = $('set-label');
   row.querySelectorAll('.set-dot').forEach(d => d.remove());
   for (let i = 1; i <= total; i++) {
     const dot = document.createElement('span');
     dot.className = 'set-dot';
-    if      (i < current)    dot.classList.add(isRight ? 'dot-right-done'    : 'dot-done');
-    else if (i === current)  dot.classList.add(isRight ? 'dot-right-current' : 'dot-current');
+    if (i < current) dot.classList.add(isRight ? 'dot-right-done' : 'dot-done');
+    else if (i === current) dot.classList.add(isRight ? 'dot-right-current' : 'dot-current');
     row.insertBefore(dot, label);
   }
   label.textContent = `SET ${current} OF ${total}`;
+}
+
+function markCurrentDotDone(isRight) {
+  const dots = $('set-row').querySelectorAll('.set-dot');
+  const dot = dots[S.currentSet - 1];
+  if (!dot) return;
+  dot.className = `set-dot ${isRight ? 'dot-right-done' : 'dot-done'}`;
 }
 
 function renderUpNext() {
@@ -1000,71 +744,169 @@ function renderUpNext() {
     const div = document.createElement('div');
     div.className = 'upnext-item' + (i === 0 ? ' upnext-first' : '');
     const ex = s.ex || (s.exId ? EXDB[s.exId] : null);
-    let name = ex ? ex.name : (s.type === 'locked' ? 'Side Plank (locked)' : '—');
+    let name = ex ? ex.name : '—';
+    if (s.type === 'locked') name = 'Side Plank (locked)';
     if (s.type === 'right-mod') name += ' · RIGHT +';
-    if (s.type === 'warmup')    name += ' · WARM-UP';
+    if (s.type === 'warmup') name += ' · WARM-UP';
     div.textContent = name;
     list.appendChild(div);
   });
 }
 
-// ─── Timers ────────────────────────────────────────────────────────────────────
-function startCountdown(sec, onComplete) {
-  clearTimers();
-  S.timerSec = sec;
-  S.timerMax = sec;
-  $('timer-num').textContent = sec;
-  $('timer-unit').textContent = 'SEC';
+function runCurrentSet() {
+  const step = S.steps[S.idx];
+  if (!step) return endSession();
+  if (step.type === 'locked') return;
+  if (!step.flow || step.flow.kind === 'manual') {
+    S.phase = 'active';
+    $('done-btn').disabled = false;
+    return;
+  }
+  const runId = ++S.stepRunId;
+  S.phase = 'active';
   $('done-btn').disabled = true;
-  setRing(1);
-
-  S.interval = setInterval(() => {
-    S.timerSec--;
-    $('timer-num').textContent = S.timerSec;
-    setRing(S.timerSec / S.timerMax);
-
-    // Mid-timer cues at 10s intervals (only when >10s total)
-    if (S.timerMax > 10 && S.timerSec > 5 && S.timerSec % 10 === 0) {
-      if (S.audioMode === 'voice') speak(`${S.timerSec} seconds`);
-      else beep(660, 0.1, 'sine');
-    }
-
-    // Last-5 countdown
-    if (S.timerSec > 0 && S.timerSec <= 5) {
-      countdownBeep(S.timerSec);
-      if (S.audioMode === 'voice') speak(String(S.timerSec));
-    }
-
-    if (S.timerSec <= 0) {
-      clearInterval(S.interval); S.interval = null;
-      beep(880, 0.2);
-      $('done-btn').disabled = false;
-      onComplete && onComplete();
-    }
-  }, 1000);
+  executeFlow(step.flow, runId).then(() => {
+    if (runId !== S.stepRunId || S.phase === 'paused') return;
+    $('done-btn').disabled = false;
+    completeCurrentSet('auto');
+  }).catch(() => {});
 }
 
-function startSideTimer(sideSec) {
-  const badge    = $('phase-badge');
-  const origText = badge.textContent;
+async function executeFlow(flow, runId) {
+  if (!flow || flow.kind === 'manual') return;
+  if (flow.kind === 'timed') return runCountdown(flow.sec, runId);
+  if (flow.kind === 'timedBreathing') return runBreathing(flow.reps, flow.inhaleSec, flow.exhaleSec, runId);
+  if (flow.kind === 'reps') return runReps(flow.reps, 0, '', runId);
+  if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, '', runId);
+  if (flow.kind === 'perSideTimed') {
+    await runCountdown(flow.sec, runId, 'LEFT SIDE');
+    if (runId !== S.stepRunId) return;
+    await wait(160);
+    await runCountdown(flow.sec, runId, 'RIGHT SIDE');
+    return;
+  }
+  if (flow.kind === 'perSideRepsHold') {
+    await runReps(flow.reps, flow.holdSec || 0, 'Left side', runId);
+    if (runId !== S.stepRunId) return;
+    await wait(180);
+    await runReps(flow.reps, flow.holdSec || 0, 'Right side', runId);
+    return;
+  }
+  if (flow.kind === 'sequence') {
+    for (const block of flow.blocks) {
+      if (runId !== S.stepRunId) return;
+      if (block.kind === 'rest') await runCountdown(block.sec, runId, block.label || 'REST');
+      else await runReps(block.reps, block.holdSec || 0, block.label || '', runId);
+    }
+  }
+}
 
-  badge.textContent = origText + ' · LEFT SIDE';
-  if (S.audioMode === 'voice') speak('Left side');
-  else { beep(440, 0.1); setTimeout(() => beep(550, 0.12), 200); }
+async function runBreathing(reps, inhaleSec, exhaleSec, runId) {
+  for (let i = 1; i <= reps; i++) {
+    if (runId !== S.stepRunId) return;
+    $('timer-num').textContent = i;
+    $('timer-unit').textContent = 'BREATH';
+    setRing(1 - (i - 1) / reps);
 
-  startCountdown(sideSec, () => {
-    badge.textContent = origText + ' · RIGHT SIDE';
-    if (S.audioMode === 'voice') speak('Right side');
-    else { beep(550, 0.1); setTimeout(() => beep(660, 0.12), 200); }
+    if (S.audioMode === 'voice') await queueSpeak(`${i}. Inhale`, { cancel: false });
+    else beep(420, 0.09);
 
-    startCountdown(sideSec, () => {
-      onTimerDone();
-    });
+    await wait(inhaleSec * 1000);
+    if (runId !== S.stepRunId) return;
+    await wait(180);
+
+    if (S.audioMode === 'voice') await queueSpeak('Exhale', { cancel: false });
+    else beep(320, 0.09);
+
+    await wait(exhaleSec * 1000);
+    if (runId !== S.stepRunId) return;
+    await wait(180);
+  }
+}
+
+async function runReps(reps, holdSec, label, runId) {
+  for (let rep = 1; rep <= reps; rep++) {
+    if (runId !== S.stepRunId) return;
+    $('timer-num').textContent = rep;
+    $('timer-unit').textContent = label ? `${label} · REPS` : 'REPS';
+    setRing(1 - (rep - 1) / reps);
+
+    for (let s = 0; s < holdSec; s++) {
+      if (runId !== S.stepRunId) return;
+      beep(holdSec - s === 1 ? 880 : 520, 0.08);
+      await wait(1000);
+    }
+
+    await wait(170);
+    if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
+    else beep(620, 0.08);
+    await wait(190);
+  }
+}
+
+function runCountdown(sec, runId, label = 'SEC') {
+  return new Promise(resolve => {
+    clearTimers();
+    S.timerSec = sec;
+    S.timerMax = sec;
+    $('timer-num').textContent = sec;
+    $('timer-unit').textContent = label;
+    setRing(1);
+
+    S.interval = setInterval(() => {
+      if (runId !== S.stepRunId) { clearTimers(); resolve(); return; }
+      S.timerSec -= 1;
+      $('timer-num').textContent = S.timerSec;
+      setRing(S.timerMax ? S.timerSec / S.timerMax : 0);
+
+      if (S.timerSec > 0 && S.timerSec <= 5) {
+        countdownBeep(S.timerSec);
+        if (S.audioMode === 'voice') queueSpeak(String(S.timerSec), { cancel: false });
+      }
+
+      if (S.timerSec <= 0) {
+        clearTimers();
+        beep(880, 0.16);
+        resolve();
+      }
+    }, 1000);
   });
 }
 
-function startRestTimer(sec) {
-  clearTimers();
+function completeCurrentSet(source = 'manual') {
+  const step = S.steps[S.idx];
+  if (!step || step.type === 'locked' || S.transitionLock) return;
+
+  const isRight = step.type === 'right-mod';
+  const ex = step.ex;
+  const totalSets = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
+
+  cancelRun();
+  markCurrentDotDone(isRight);
+
+  if (S.currentSet < totalSets) {
+    const restSec = ex.restSec || 0;
+    if (restSec > 0) {
+      startInterSetRest(restSec, () => {
+        S.currentSet += 1;
+        renderSetDots(totalSets, S.currentSet, isRight);
+        runCurrentSet();
+      });
+    } else {
+      S.currentSet += 1;
+      renderSetDots(totalSets, S.currentSet, isRight);
+      runCurrentSet();
+    }
+    return;
+  }
+
+  S.doneSets += totalSets;
+  if (step.type === 'bilateral') S.doneExercises += 1;
+  doneBeep();
+  advanceStepOnce();
+}
+
+function startInterSetRest(sec, afterRest) {
   S.phase = 'resting';
   $('session').classList.add('resting');
   $('phase-badge').textContent = 'REST';
@@ -1073,237 +915,94 @@ function startRestTimer(sec) {
   $('ex-name').className = 'ex-name name-rest';
   $('ex-muscles').textContent = '';
   $('cue-card').className = 'cue-card';
-  $('cue-text').textContent = 'Rest. Breathe. Keep form in mind for next set.';
+  $('cue-text').textContent = 'Rest. Breathe. Keep form tight for the next set.';
   $('done-btn').className = 'done-btn done-ghost';
   $('done-btn').textContent = 'SKIP REST';
   $('done-btn').disabled = false;
 
-  setRing(1);
-  S.timerSec = sec;
-  S.timerMax = sec;
-  $('timer-num').textContent = sec;
-  $('timer-unit').textContent = 'SEC';
-
-  if (S.audioMode === 'voice') speak(`Rest. ${sec} seconds.`);
-  else beep(330, 0.2, 'sine');
-
-  const total = sec;
-  let elapsed = 0;
-
-  S.restInterval = setInterval(() => {
-    elapsed++;
-    S.timerSec = total - elapsed;
-    $('timer-num').textContent = S.timerSec;
-    setRing(S.timerSec / total);
-
-    if (S.timerSec > 0 && S.timerSec <= 5) {
-      countdownBeep(S.timerSec);
-      if (S.audioMode === 'voice') speak(String(S.timerSec));
-    }
-
-    if (S.timerSec <= 0) {
-      clearInterval(S.restInterval); S.restInterval = null;
-      beep(880, 0.2, 'sine');
-      afterRest();
-    }
-  }, 1000);
+  const runId = ++S.stepRunId;
+  runCountdown(sec, runId, 'SEC').then(() => {
+    if (runId !== S.stepRunId) return;
+    $('session').classList.remove('resting');
+    const step = S.steps[S.idx];
+    if (!step || step.type === 'locked') return;
+    renderStep(step);
+    afterRest();
+  });
 }
 
-// ─── Timer completion: auto-advance set ───────────────────────────────────────
-function onTimerDone() {
-  const step    = S.steps[S.idx];
-  if (!step) { endSession(); return; }
-  const isRight = step.type === 'right-mod';
-  const ex      = step.ex;
-  const sets    = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
-
-  // Mark current dot done
-  markCurrentDotDone(isRight);
-
-  if (S.currentSet >= sets) {
-    // All sets done
-    S.doneSets += sets;
-    if (step.type === 'bilateral') S.doneExercises++;
-    doneBeep();
-    if (S.audioMode === 'voice') speakPromise('Exercise complete.', true).then(advanceStep);
-    else setTimeout(advanceStep, 800);
-  } else {
-    const restSec = ex.restSec || 0;
-    if (restSec > 0) {
-      startRestTimer(restSec);
-    } else {
-      // No rest — go straight to next set
-      S.currentSet++;
-      renderSetDots(sets, S.currentSet, isRight);
-      const plan = getAutoPlan(step);
-      const announce  = () => startPlan(plan, () => onTimerDone());
-      if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(announce);
-      else announce();
-    }
-  }
+async function advanceStepOnce() {
+  if (S.transitionLock) return;
+  S.transitionLock = true;
+  if (S.audioMode === 'voice') await queueSpeak('Exercise complete.', { cancel: true });
+  S.idx += 1;
+  S.transitionLock = false;
+  if (S.idx >= S.steps.length) endSession();
+  else enterStep();
 }
 
-function afterRest() {
-  $('session').classList.remove('resting');
-  S.phase = 'active';
-  const step = S.steps[S.idx];
-  if (!step) { endSession(); return; }
-
-  const isRight = step.type === 'right-mod';
-  const ex      = step.ex;
-  const sets    = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
-
-  // Increment BEFORE renderStep (which resets currentSet to 1)
-  const nextSet = S.currentSet + 1;
-
-  // Restore session UI without resetting set dots
-  renderStep(step);
-
-  // Now restore correct set number after renderStep reset it
-  S.currentSet = nextSet;
-  renderSetDots(sets, S.currentSet, isRight);
-
-  // Announce and restart step plan
-  const plan = getAutoPlan(step);
-  const doResume = () => startPlan(plan, () => onTimerDone());
-
-  if (S.audioMode === 'voice') {
-    speakPromise(`Set ${S.currentSet}. Begin.`, true).then(doResume);
-  } else {
-    beep(440, 0.1); setTimeout(() => beep(550, 0.12), 200);
-    doResume();
-  }
-}
-
-function startRestTimerFrom(sec) {
-  clearTimers();
-  S.phase = 'resting';
-  $('session').classList.add('resting');
-  $('phase-badge').textContent = 'REST';
-  $('phase-badge').className = 'phase-badge badge-rest';
-  $('done-btn').className = 'done-btn done-ghost';
-  $('done-btn').textContent = 'SKIP REST';
-  $('done-btn').disabled = false;
-
-  setRing(sec / S.timerMax || 1);
-  S.timerSec = sec;
-  $('timer-num').textContent = sec;
-  $('timer-unit').textContent = 'SEC';
-
-  S.restInterval = setInterval(() => {
-    S.timerSec--;
-    $('timer-num').textContent = S.timerSec;
-    setRing(S.timerSec / S.timerMax);
-    if (S.timerSec > 0 && S.timerSec <= 5) {
-      countdownBeep(S.timerSec);
-      if (S.audioMode === 'voice') speak(String(S.timerSec));
-    }
-    if (S.timerSec <= 0) {
-      clearInterval(S.restInterval); S.restInterval = null;
-      beep(880, 0.2, 'sine');
-      afterRest();
-    }
-  }, 1000);
-}
-
-function markCurrentDotDone(isRight) {
-  const dots = $('set-row').querySelectorAll('.set-dot');
-  if (dots[S.currentSet - 1]) {
-    dots[S.currentSet - 1].className = 'set-dot ' + (isRight ? 'dot-right-done' : 'dot-done');
-  }
-}
-
-// ─── Manual DONE SET button ────────────────────────────────────────────────────
 function onDone() {
-  if (S.transitioning) return;
-  clearTimers();
+  if (S.phase === 'paused') return;
   const step = S.steps[S.idx];
-  if (!step) { endSession(); return; }
-  if (step.type === 'locked') { advanceStep(); return; }
-  if (S.phase === 'paused')   { return; }
-  if (S.phase === 'resting')  { clearTimers(); afterRest(); return; }
-
-  const isRight = step.type === 'right-mod';
-  const ex      = step.ex;
-  const sets    = isRight ? (ex.rightModSets || ex.sets) : ex.sets;
-
-  beep(880, 0.15);
-  markCurrentDotDone(isRight);
-
-  if (S.currentSet >= sets) {
-    // All sets done — always advance (rest is only BETWEEN sets, not after the last)
-    S.doneSets += sets;
-    if (step.type === 'bilateral') S.doneExercises++;
-    doneBeep();
-    if (S.audioMode === 'voice') speakPromise('Done.', true).then(advanceStep);
-    else setTimeout(advanceStep, 600);
-  } else {
-    // More sets remain — rest between sets if configured
-    const restSec = ex.restSec || 0;
-    if (restSec > 0) {
-      setTimeout(() => startRestTimer(restSec), 300);
-    } else {
-      S.currentSet++;
-      renderSetDots(sets, S.currentSet, isRight);
-      const plan = getAutoPlan(step);
-      const begin = () => startPlan(plan, () => onTimerDone());
-      if (S.audioMode === 'voice') speakPromise(`Set ${S.currentSet}. Begin.`, true).then(begin);
-      else { beep(550, 0.12); begin(); }
-    }
+  if (!step) return endSession();
+  if (step.type === 'locked') { S.idx += 1; if (S.idx >= S.steps.length) endSession(); else enterStep(); return; }
+  if (S.phase === 'resting') {
+    cancelRun();
+    $('session').classList.remove('resting');
+    renderStep(step);
+    const isRight = step.type === 'right-mod';
+    const totalSets = isRight ? (step.ex.rightModSets || step.ex.sets) : step.ex.sets;
+    S.currentSet = Math.min(S.currentSet + 1, totalSets);
+    renderSetDots(totalSets, S.currentSet, isRight);
+    runCurrentSet();
+    return;
   }
+
+  completeCurrentSet('manual');
+}
+
+function onSkip() {
+  const step = S.steps[S.idx];
+  cancelRun();
+  if (step && step.type === 'bilateral') S.doneExercises += 1;
+  S.idx += 1;
+  if (S.idx >= S.steps.length) endSession();
+  else enterStep();
 }
 
 function onPause() {
   if (S.phase === 'paused') {
-    // Resume
-    const wasResting = S.pausedPhase === 'resting';
-    S.phase = wasResting ? 'resting' : 'active';
+    S.phase = S.pausedPhase || 'active';
     S.pausedPhase = null;
     $('pause-btn').textContent = '⏸ PAUSE';
-    if (window.speechSynthesis) speechSynthesis.cancel();
-
-    if (S.pausedTimerSec > 0) {
-      const remaining = S.pausedTimerSec;
-      S.pausedTimerSec = 0;
-      if (wasResting) startRestTimerFrom(remaining);
-      else startCountdown(remaining, () => onTimerDone());
+    const step = S.steps[S.idx];
+    if (!step || step.type === 'locked') return;
+    if (S.phase === 'resting') {
+      startInterSetRest(S.pausedTimerSec || 1, () => {
+        const isRight = step.type === 'right-mod';
+        const totalSets = isRight ? (step.ex.rightModSets || step.ex.sets) : step.ex.sets;
+        S.currentSet = Math.min(S.currentSet + 1, totalSets);
+        renderSetDots(totalSets, S.currentSet, isRight);
+        runCurrentSet();
+      });
+    } else {
+      runCurrentSet();
     }
     return;
   }
+
   if (S.phase !== 'active' && S.phase !== 'resting') return;
   S.pausedPhase = S.phase;
-  clearTimers();
   S.pausedTimerSec = S.timerSec;
   S.phase = 'paused';
   $('pause-btn').textContent = '▶ RESUME';
-  if (window.speechSynthesis) speechSynthesis.cancel();
-  speak('Paused.');
+  cancelRun();
 }
 
-function onSkip() {
-  clearTimers();
-  const step = S.steps[S.idx];
-  if (step && step.type === 'bilateral') S.doneExercises++;
-  advanceStep();
-}
-
-function advanceStep() {
-  if (S.transitioning) return;
-  S.idx++;
-  S.phase = 'active';
-  $('session').classList.remove('resting', 'right-active');
-  if (S.idx >= S.steps.length) {
-    endSession();
-  } else {
-    announceAndRenderStep();
-  }
-}
-
-// ─── End Session ───────────────────────────────────────────────────────────────
 function endSession() {
-  clearTimers();
+  cancelRun();
   releaseWakeLock();
-  S.phase = 'idle';
+  S.phase = 'complete';
 
   const elapsed = Math.round((Date.now() - S.startTime) / 1000);
   const mins = Math.floor(elapsed / 60);
@@ -1315,24 +1014,18 @@ function endSession() {
   if (history.length > 50) history.pop();
   localStorage.setItem('sr_history', JSON.stringify(history));
 
-  $('done-stats').innerHTML =
-    `<strong>${S.doneExercises}</strong> exercises &nbsp;·&nbsp; <strong>${S.doneSets}</strong> sets<br><strong>${timeStr}</strong> total time`;
-
+  $('done-stats').innerHTML = `<strong>${S.doneExercises}</strong> exercises &nbsp;·&nbsp; <strong>${S.doneSets}</strong> sets<br><strong>${timeStr}</strong> total time`;
   const weekBtn = $('week-btn');
-  if (S.day === 5) {
-    weekBtn.textContent = `WEEK ${S.week} DONE → WEEK ${S.week + 1}`;
-    weekBtn.style.display = '';
-  } else {
-    weekBtn.style.display = 'none';
-  }
+  if (S.day === 5) { weekBtn.textContent = `WEEK ${S.week} DONE → WEEK ${S.week + 1}`; weekBtn.style.display = ''; }
+  else weekBtn.style.display = 'none';
 
   showView('complete');
-  if (S.audioMode === 'voice') speakPromise('Session complete. Great work.', true);
+  if (S.audioMode === 'voice') queueSpeak('Session complete. Great work.', { cancel: true });
   else doneBeep();
 }
 
 function onWeekComplete() {
-  S.week++;
+  S.week += 1;
   localStorage.setItem('sr_week', S.week);
   updateWeekBadge();
   $('week-btn').style.display = 'none';
