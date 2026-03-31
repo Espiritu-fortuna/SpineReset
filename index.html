@@ -235,20 +235,34 @@ const EXDB = {
   1: {
     name: 'Prone Y-T-W Raises',
     muscles: 'Lower/mid trapezius · serratus anterior',
-    sets: 3, repsLabel: '8–10 reps (Y, T, W)', restSec: 60,
+    sets: 1, repsLabel: 'Y(3 sets)+Right, T(3 sets)+Right, W(3 sets)+Right', restSec: 0,
+    ytwIntegrated: true,
     guidedSequence: [
-      { label: 'Y', reps: 8, holdSec: 3 },
-      { label: 'T', reps: 8, holdSec: 3 },
-      { label: 'W', reps: 8, holdSec: 3 },
+      { label: 'Y set 1', reps: 8, holdSec: 3 },
+      { label: 'Right Y extra', reps: 2, holdSec: 3 },
+      { label: 'Y set 2', reps: 8, holdSec: 3 },
+      { label: 'Right Y extra', reps: 2, holdSec: 3 },
+      { label: 'Y set 3', reps: 8, holdSec: 3 },
+      { label: 'Right Y extra', reps: 2, holdSec: 3 },
+      { type: 'rest', sec: 60, label: 'Rest before T' },
+
+      { label: 'T set 1', reps: 8, holdSec: 3 },
+      { label: 'Right T extra', reps: 2, holdSec: 3 },
+      { label: 'T set 2', reps: 8, holdSec: 3 },
+      { label: 'Right T extra', reps: 2, holdSec: 3 },
+      { label: 'T set 3', reps: 8, holdSec: 3 },
+      { label: 'Right T extra', reps: 2, holdSec: 3 },
+      { type: 'rest', sec: 60, label: 'Rest before W' },
+
+      { label: 'W set 1', reps: 8, holdSec: 3 },
+      { label: 'Right W extra', reps: 2, holdSec: 3 },
+      { label: 'W set 2', reps: 8, holdSec: 3 },
+      { label: 'Right W extra', reps: 2, holdSec: 3 },
+      { label: 'W set 3', reps: 8, holdSec: 3 },
+      { label: 'Right W extra', reps: 2, holdSec: 3 },
     ],
-    cue: 'Face down, thumbs up. Y=130°, T=90°, W=goalpost. Squeeze blades DOWN. 3s hold at top. Never shrug.',
-    rightMod: 'Do 2 EXTRA REPS with RIGHT arm only in each position (Y, T, W). Left arm stays standard.',
-    rightModSets: 3,
-    rightGuidedSequence: [
-      { label: 'Right Y', reps: 2, holdSec: 3 },
-      { label: 'Right T', reps: 2, holdSec: 3 },
-      { label: 'Right W', reps: 2, holdSec: 3 },
-    ],
+    cue: 'Order is fixed: Y then T then W. For each letter: 3 sets, each set includes RIGHT extra reps. No rest between sets or right extras. Rest 60s only between Y→T and T→W.',
+    rightMod: null,
   },
   2: {
     name: 'Wall Slides',
@@ -532,6 +546,25 @@ function startGuidedSequence(sequence, onComplete) {
   (async () => {
     for (const seg of sequence) {
       if (!S.guidedRunning || S.guidedToken !== token) return;
+
+      if (seg.type === 'rest') {
+        $('timer-unit').textContent = 'SEC';
+        if (S.audioMode === 'voice') await speakPromise(seg.label || `Rest ${seg.sec} seconds`, false);
+        for (let t = seg.sec; t > 0; t--) {
+          if (!S.guidedRunning || S.guidedToken !== token) return;
+          $('timer-num').textContent = t;
+          setRing(t / seg.sec);
+          if (t <= 5) {
+            countdownBeep(t);
+            if (S.audioMode === 'voice') speak(String(t));
+          }
+          await delay(1000);
+        }
+        beep(880, 0.15, 'sine');
+        await delay(200);
+        continue;
+      }
+
       $('timer-unit').textContent = `${seg.label} · REPS`;
       if (S.audioMode === 'voice') await speakPromise(seg.label, false);
       if (!S.guidedRunning || S.guidedToken !== token) return;
@@ -569,7 +602,7 @@ function getAutoPlan(step) {
   // Architecture map for rep-based flows
   const id = step.exId;
   const mapBilateral = {
-    2:  { mode: 'guided', reps: 10, hold: 3 },                          // Wall slides
+    2:  { mode: 'guided', reps: 10, hold: 6 },                          // Wall slides (3s up/3s down cadence)
     4:  { mode: 'sequence', sequence: [ {label:'Left side', reps:10, holdSec:2}, {label:'Right side', reps:10, holdSec:2} ] },
     5:  { mode: 'sequence', sequence: [ {label:'Left side', reps:8, holdSec:2},  {label:'Right side', reps:8, holdSec:2} ] },
     7:  { mode: 'guided', reps: 12, hold: 3 },                          // Glute bridge
