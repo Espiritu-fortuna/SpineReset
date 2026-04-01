@@ -795,8 +795,26 @@ async function executeFlow(flow, runId) {
   if (flow.kind === 'sequence') {
     for (const block of flow.blocks) {
       if (runId !== S.stepRunId) return;
-      if (block.kind === 'rest') await runCountdown(block.sec, runId, block.label || 'REST');
-      else await runReps(block.reps, block.holdSec || 0, block.label || '', runId);
+      if (block.kind === 'rest') {
+        if (S.audioMode === 'voice' && block.label) await queueSpeak(block.label, { cancel: false });
+        await runCountdown(block.sec, runId, block.label || 'REST');
+      } else {
+        const label = block.label || '';
+        if (S.audioMode === 'voice' && label) {
+          // Announce each Y/T/W segment and clearly mark right-side exception start/end
+          if (/^Right\s/i.test(label)) {
+            await queueSpeak(`Right side exception start. ${label}.`, { cancel: false });
+          } else {
+            await queueSpeak(`${label}.`, { cancel: false });
+          }
+        }
+
+        await runReps(block.reps, block.holdSec || 0, label, runId);
+
+        if (S.audioMode === 'voice' && /^Right\s/i.test(label)) {
+          await queueSpeak('Right side exception complete.', { cancel: false });
+        }
+      }
     }
   }
 }
