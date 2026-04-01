@@ -239,25 +239,25 @@ const EXDB = {
     flow: {
       kind: 'sequence',
       blocks: [
-        { kind: 'action', label: 'Y set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Y set 1', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'Y set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Y set 2', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'Y set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'Y set 3', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right Y extra', reps: 2, holdSec: 3 },
         { kind: 'rest', sec: 60, label: 'Rest before T' },
-        { kind: 'action', label: 'T set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'T set 1', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'T set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'T set 2', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'T set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'T set 3', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right T extra', reps: 2, holdSec: 3 },
         { kind: 'rest', sec: 60, label: 'Rest before W' },
-        { kind: 'action', label: 'W set 1', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'W set 1', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'W set 2', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'W set 2', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
-        { kind: 'action', label: 'W set 3', reps: 8, holdSec: 3 },
+        { kind: 'action', label: 'W set 3', reps: 10, holdSec: 3 },
         { kind: 'action', label: 'Right W extra', reps: 2, holdSec: 3 },
       ]
     }
@@ -498,7 +498,7 @@ function buildFlow(step) {
   const ex = step.ex;
   const isRight = step.type === 'right-mod';
 
-  if (step.type === 'warmup' && ex.id === 'wA') return { kind: 'timedBreathing', reps: 10, inhaleSec: 4, exhaleSec: 6 };
+  if (step.type === 'warmup' && ex.id === 'wA') return { kind: 'timedBreathing', reps: 10, inhaleSec: 4, exhaleSec: 4 };
   if (step.type === 'warmup' && ex.id === 'wB') return { kind: 'repsHold', reps: 10, holdSec: 3 };
   if (step.type === 'warmup' && ex.id === 'wC') return { kind: 'repsHold', reps: 10, holdSec: 4 };
 
@@ -511,14 +511,14 @@ function buildFlow(step) {
 
   if (ex.perSide) {
     if (ex.sideSec) return { kind: 'perSideTimed', sec: ex.sideSec };
-    return { kind: 'perSideRepsHold', reps: 8, holdSec: 2 };
+    return { kind: 'perSideRepsHold', reps: 10, holdSec: 2 };
   }
 
   const mapMain = {
-    2: { kind: 'repsHold', reps: 10, holdSec: 6 }, // Wall slides: 3s up + 3s down
+    2: { kind: 'repsHold', reps: 10, holdSec: 6, countAtStart: true }, // Wall slides: count at rep start
     3: { kind: 'repsHold', reps: 10, holdSec: 10 },
     4: { kind: 'perSideRepsHold', reps: 10, holdSec: 2 },
-    5: { kind: 'perSideRepsHold', reps: 8, holdSec: 2 },
+    5: { kind: 'perSideRepsHold', reps: 10, holdSec: 2 },
     7: { kind: 'repsHold', reps: 12, holdSec: 3 },
     9: { kind: 'perSideRepsHold', reps: 12, holdSec: 2 },
     11:{ kind: 'repsHold', reps: 8, holdSec: 5 },
@@ -776,8 +776,8 @@ async function executeFlow(flow, runId) {
   if (!flow || flow.kind === 'manual') return;
   if (flow.kind === 'timed') return runCountdown(flow.sec, runId);
   if (flow.kind === 'timedBreathing') return runBreathing(flow.reps, flow.inhaleSec, flow.exhaleSec, runId);
-  if (flow.kind === 'reps') return runReps(flow.reps, 0, '', runId);
-  if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, '', runId);
+  if (flow.kind === 'reps') return runReps(flow.reps, 0, '', runId, !!flow.countAtStart);
+  if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, '', runId, !!flow.countAtStart);
   if (flow.kind === 'perSideTimed') {
     await runCountdown(flow.sec, runId, 'LEFT SIDE');
     if (runId !== S.stepRunId) return;
@@ -824,12 +824,18 @@ async function runBreathing(reps, inhaleSec, exhaleSec, runId) {
   }
 }
 
-async function runReps(reps, holdSec, label, runId) {
+async function runReps(reps, holdSec, label, runId, countAtStart = false) {
   for (let rep = 1; rep <= reps; rep++) {
     if (runId !== S.stepRunId) return;
     $('timer-num').textContent = rep;
     $('timer-unit').textContent = label ? `${label} · REPS` : 'REPS';
     setRing(1 - (rep - 1) / reps);
+
+    if (countAtStart) {
+      if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
+      else beep(620, 0.08);
+      await wait(170);
+    }
 
     for (let s = 0; s < holdSec; s++) {
       if (runId !== S.stepRunId) return;
@@ -837,9 +843,11 @@ async function runReps(reps, holdSec, label, runId) {
       await wait(1000);
     }
 
-    await wait(170);
-    if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
-    else beep(620, 0.08);
+    if (!countAtStart) {
+      await wait(170);
+      if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
+      else beep(620, 0.08);
+    }
     await wait(190);
   }
 }
@@ -885,18 +893,10 @@ function completeCurrentSet(source = 'manual') {
   markCurrentDotDone(isRight);
 
   if (S.currentSet < totalSets) {
-    const restSec = ex.restSec || 0;
-    if (restSec > 0) {
-      startInterSetRest(restSec, () => {
-        S.currentSet += 1;
-        renderSetDots(totalSets, S.currentSet, isRight);
-        runCurrentSet();
-      });
-    } else {
-      S.currentSet += 1;
-      renderSetDots(totalSets, S.currentSet, isRight);
-      runCurrentSet();
-    }
+    // Global rule: no rest between sets
+    S.currentSet += 1;
+    renderSetDots(totalSets, S.currentSet, isRight);
+    runCurrentSet();
     return;
   }
 
@@ -931,10 +931,42 @@ function startInterSetRest(sec, afterRest) {
   });
 }
 
+function shouldRestBetweenExercises(curr, next) {
+  if (!curr || !next) return false;
+  // Never rest inside warmups
+  if (curr.type === 'warmup' || next.type === 'warmup') return false;
+  // No rest between bilateral and its right-mod addition
+  if (curr.type === 'bilateral' && next.type === 'right-mod' && curr.exId === next.exId) return false;
+  // Rest after right-mod before next exercise
+  if (curr.type === 'right-mod' && next.type === 'bilateral') return true;
+  // Rest between bilateral exercises that have no right-mod
+  if (curr.type === 'bilateral' && next.type === 'bilateral') return true;
+  return false;
+}
+
 async function advanceStepOnce() {
   if (S.transitionLock) return;
   S.transitionLock = true;
-  if (S.audioMode === 'voice') await queueSpeak('Exercise complete.', { cancel: true });
+
+  const curr = S.steps[S.idx];
+  const next = S.steps[S.idx + 1];
+
+  // Warmup -> main transition delay
+  if (curr?.type === 'warmup' && next?.type === 'bilateral' && S.audioMode === 'voice') {
+    await queueSpeak('Warm-up complete. Main exercises begin in five seconds.', { cancel: true });
+    await wait(5000);
+  }
+
+  // Rest only between main exercises
+  if (shouldRestBetweenExercises(curr, next)) {
+    await queueSpeak('Rest sixty seconds.', { cancel: true });
+    const runId = ++S.stepRunId;
+    await runCountdown(60, runId, 'SEC');
+    if (runId !== S.stepRunId) { S.transitionLock = false; return; }
+  } else if (S.audioMode === 'voice') {
+    await queueSpeak('Exercise complete.', { cancel: true });
+  }
+
   S.idx += 1;
   S.transitionLock = false;
   if (S.idx >= S.steps.length) endSession();
