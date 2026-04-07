@@ -391,9 +391,11 @@ let S = {
   steps: [], idx: 0, currentSet: 1,
   phase: 'idle', // idle | active | resting | paused | complete
   timerSec: 0, timerMax: 0,
+  timerLabel: '',
   interval: null,
   pausedTimerSec: 0,
   pausedPhase: null,
+  pendingAdvanceAfterRest: false,
   startTime: null, doneSets: 0, doneExercises: 0,
   selectedVoice: null, voiceRate: 0.9, voicePitch: 1.0, beepVolume: 0.6, audioMode: 'voice',
   stepRunId: 0,
@@ -488,7 +490,12 @@ function renderDayCards() {
     const card = document.createElement('div');
     card.className = 'day-card' + (d === S.day ? ' selected' : '');
     card.innerHTML = `<span class="day-num">${d}</span><div class="day-info"><div class="day-label">DAY ${d}</div><div class="day-title">${DAYS[d].title}</div></div>`;
-    card.addEventListener('click', () => { S.day = d; localStorage.setItem('sr_day', d); renderDayCards(); });
+    card.addEventListener('click', () => {
+      S.day = d;
+      localStorage.setItem('sr_selected_day', d);
+      localStorage.setItem('sr_day', d);
+      renderDayCards();
+    });
     grid.appendChild(card);
   }
 }
@@ -555,7 +562,7 @@ function buildSteps(day) {
 
 function init() {
   S.week = parseInt(localStorage.getItem('sr_week') || '1', 10);
-  S.day = parseInt(localStorage.getItem('sr_day') || '1', 10);
+  S.day = parseInt(localStorage.getItem('sr_selected_day') || localStorage.getItem('sr_day') || '1', 10);
   const g = JSON.parse(localStorage.getItem('sr_global') || '{}');
   S.voiceRate = g.voiceRate ?? 0.9;
   S.voicePitch = g.voicePitch ?? 1.0;
@@ -875,6 +882,7 @@ function runCountdown(sec, runId, label = 'SEC') {
     clearTimers();
     S.timerSec = sec;
     S.timerMax = sec;
+    S.timerLabel = label;
     $('timer-num').textContent = sec;
     $('timer-unit').textContent = label;
     setRing(1);
@@ -962,6 +970,23 @@ function shouldRestBetweenExercises(curr, next) {
   return false;
 }
 
+function renderExerciseRest(sec = 60) {
+  $('session').classList.add('resting');
+  $('phase-badge').textContent = 'REST';
+  $('phase-badge').className = 'phase-badge badge-rest';
+  $('ex-name').textContent = 'RECOVER';
+  $('ex-name').className = 'ex-name name-rest';
+  $('ex-muscles').textContent = '';
+  $('cue-card').className = 'cue-card';
+  $('cue-text').textContent = 'Rest. Breathe. Get ready for the next exercise.';
+  $('done-btn').className = 'done-btn done-ghost';
+  $('done-btn').textContent = 'SKIP REST';
+  $('done-btn').disabled = false;
+  $('timer-num').textContent = sec;
+  $('timer-unit').textContent = 'SEC';
+  setRing(1);
+}
+
 async function advanceStepOnce() {
   if (S.transitionLock) return;
   S.transitionLock = true;
@@ -977,10 +1002,16 @@ async function advanceStepOnce() {
 
   // Rest only between main exercises
   if (shouldRestBetweenExercises(curr, next)) {
+    S.phase = 'resting';
+    S.pendingAdvanceAfterRest = true;
+    renderExerciseRest(60);
     await queueSpeak('Rest sixty seconds.', { cancel: true });
     const runId = ++S.stepRunId;
     await runCountdown(60, runId, 'SEC');
     if (runId !== S.stepRunId) { S.transitionLock = false; return; }
+    S.pendingAdvanceAfterRest = false;
+    $('session').classList.remove('resting');
+    S.phase = 'active';
   } else if (S.audioMode === 'voice') {
     await queueSpeak('Exercise complete.', { cancel: true });
   }
@@ -998,13 +1029,12 @@ function onDone() {
   if (step.type === 'locked') { S.idx += 1; if (S.idx >= S.steps.length) endSession(); else enterStep(); return; }
   if (S.phase === 'resting') {
     cancelRun();
+    S.pendingAdvanceAfterRest = false;
     $('session').classList.remove('resting');
-    renderStep(step);
-    const isRight = step.type === 'right-mod';
-    const totalSets = isRight ? (step.ex.rightModSets || step.ex.sets) : step.ex.sets;
-    S.currentSet = Math.min(S.currentSet + 1, totalSets);
-    renderSetDots(totalSets, S.currentSet, isRight);
-    runCurrentSet();
+    S.phase = 'active';
+    S.idx += 1;
+    if (S.idx >= S.steps.length) endSession();
+    else enterStep();
     return;
   }
 
@@ -1026,18 +1056,23 @@ function onPause() {
     S.pausedPhase = null;
     $('pause-btn').textContent = '⏸ PAUSE';
     const step = S.steps[S.idx];
-    if (!step || step.type === 'locked') return;
     if (S.phase === 'resting') {
-      startInterSetRest(S.pausedTimerSec || 1, () => {
-        const isRight = step.type === 'right-mod';
-        const totalSets = isRight ? (step.ex.rightModSets || step.ex.sets) : step.ex.sets;
-        S.currentSet = Math.min(S.currentSet + 1, totalSets);
-        renderSetDots(totalSets, S.currentSet, isRight);
-        runCurrentSet();
+      renderExerciseRest(S.pausedTimerSec || 1);
+      const pausedSec = S.pausedTimerSec || 1;
+      const runId = ++S.stepRunId;
+      runCountdown(pausedSec, runId, S.timerLabel || 'SEC').then(() => {
+        if (runId !== S.stepRunId) return;
+        S.pendingAdvanceAfterRest = false;
+        $('session').classList.remove('resting');
+        S.phase = 'active';
+        S.idx += 1;
+        if (S.idx >= S.steps.length) endSession();
+        else enterStep();
       });
-    } else {
-      runCurrentSet();
+      return;
     }
+    if (!step || step.type === 'locked') return;
+    runCurrentSet();
     return;
   }
 
