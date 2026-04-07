@@ -414,6 +414,7 @@ let S = {
   stepRunId: 0,
   transitionLock: false,
   speechChain: Promise.resolve(),
+  speechGen: 0,
 };
 let audioCtx = null;
 let wakeLock = null;
@@ -444,8 +445,24 @@ function countdownBeep(n) { const f = {5:523,4:659,3:784,2:988,1:1047}; beep(f[n
 function doneBeep() { beep(1047,0.15); setTimeout(()=>beep(1319,0.15),150); setTimeout(()=>beep(1568,0.25),300); }
 
 function queueSpeak(text, { cancel = false } = {}) {
-  S.speechChain = S.speechChain.then(() => speakPromise(text, cancel));
+  const gen = S.speechGen;
+  const run = async () => {
+    if (gen !== S.speechGen) return;
+    await speakPromise(text, cancel);
+  };
+  S.speechChain = S.speechChain.then(run, run);
   return S.speechChain;
+}
+
+function speakNoWait(text) {
+  if (!window.speechSynthesis || S.audioMode !== 'voice') return;
+  if (speechSynthesis.speaking || speechSynthesis.pending) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = S.voiceRate;
+  u.pitch = S.voicePitch;
+  u.volume = 1;
+  if (S.selectedVoice) u.voice = S.selectedVoice;
+  speechSynthesis.speak(u);
 }
 
 function speakPromise(text, cancel = false) {
@@ -492,7 +509,13 @@ function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(()=>{}); w
 function showView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); $(id).classList.add('active'); }
 function setRing(frac) { $('ring-arc').style.strokeDashoffset = CIRC * (1 - Math.min(1, Math.max(0, frac))); }
 function clearTimers() { if (S.interval) { clearInterval(S.interval); S.interval = null; } }
-function cancelRun() { S.stepRunId++; clearTimers(); if (window.speechSynthesis) speechSynthesis.cancel(); }
+function cancelRun() {
+  S.stepRunId++;
+  S.speechGen++;
+  S.speechChain = Promise.resolve();
+  clearTimers();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
 
 function updateWeekBadge() { $('week-badge').textContent = `WEEK ${S.week}`; }
 
@@ -1011,7 +1034,7 @@ function runCountdown(sec, runId, label = 'SEC') {
 
       if (S.timerSec > 0 && S.timerSec <= 5) {
         countdownBeep(S.timerSec);
-        if (S.audioMode === 'voice') queueSpeak(String(S.timerSec), { cancel: false });
+        if (S.audioMode === 'voice') speakNoWait(String(S.timerSec));
       }
 
       if (S.timerSec <= 0) {
