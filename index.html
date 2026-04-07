@@ -455,11 +455,11 @@ function speakPromise(text, cancel = false) {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = S.voiceRate; u.pitch = S.voicePitch; u.volume = 1;
     if (S.selectedVoice) u.voice = S.selectedVoice;
-    const estMs = Math.max(500, (text.length / Math.max(0.35, S.voiceRate)) * 65 + 320);
+    const fallbackMs = Math.max(4000, Math.min(20000, (text.length / Math.max(0.35, S.voiceRate)) * 140 + 1200));
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
     u.onend = finish; u.onerror = finish;
-    setTimeout(finish, estMs);
+    setTimeout(finish, fallbackMs);
     speechSynthesis.speak(u);
   });
 }
@@ -725,9 +725,9 @@ function startSession() {
 function getStepIntro(step) {
   if (!step) return '';
   if (step.type === 'locked') return 'Side Plank is locked until week three. Bird Dog replacement is next.';
-  if (step.type === 'right-mod') return `Right side modification. ${step.ex.name}. ${step.ex.rightMod || ''}`;
-  if (step.type === 'warmup') return `Warm-up. ${step.ex.name}. ${step.ex.cue || ''}`;
-  return `${step.ex.name}. ${step.ex.cue || ''}`;
+  if (step.type === 'right-mod') return `Right side modification. ${step.ex.name}.`;
+  if (step.type === 'warmup') return `Warm-up. ${step.ex.name}.`;
+  return `${step.ex.name}.`;
 }
 
 async function enterStep({ announce = true, preDelayMs = 0 } = {}) {
