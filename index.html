@@ -50,14 +50,26 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .home-title{font-family:var(--font-d);font-size:44px;letter-spacing:3px;color:var(--gold);line-height:1}
 .home-sub{font-family:var(--font-c);font-size:12px;letter-spacing:2px;color:var(--muted)}
 .day-grid{display:flex;flex-direction:column;gap:8px}
-.day-card{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:13px 16px;cursor:pointer;transition:border-color .18s,background .18s;display:flex;align-items:center;gap:14px}
-.day-card.selected{border-color:var(--gold);background:var(--gold-dim)}
+.day-wrap{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;transition:border-color .18s,background .18s}
+.day-wrap.selected{border-color:var(--gold);background:var(--gold-dim)}
+.day-card{padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:14px}
 .day-card:active{opacity:.8}
 .day-num{font-family:var(--font-d);font-size:30px;color:var(--muted);min-width:32px;line-height:1}
-.day-card.selected .day-num{color:var(--gold)}
+.day-wrap.selected .day-num{color:var(--gold)}
 .day-label{font-family:var(--font-c);font-size:10px;letter-spacing:2px;color:var(--muted)}
 .day-title{font-family:var(--font-c);font-size:14px;font-weight:600;letter-spacing:.5px;color:var(--text)}
-.day-card.selected .day-title{color:var(--gold)}
+.day-wrap.selected .day-title{color:var(--gold)}
+.day-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border:none;border-top:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02);color:var(--muted);font-family:var(--font-c);font-size:11px;letter-spacing:1.5px;cursor:pointer}
+.day-wrap.selected .day-toggle{color:var(--gold)}
+.day-toggle:active{opacity:.8}
+.day-toggle svg{transition:transform .18s ease;flex-shrink:0}
+.day-wrap.expanded .day-toggle svg{transform:rotate(180deg)}
+.day-ex-list{display:none;padding:0 16px 14px;border-top:1px solid rgba(255,255,255,.04)}
+.day-wrap.expanded .day-ex-list{display:block}
+.day-ex-item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.day-ex-item:last-child{border-bottom:none;padding-bottom:0}
+.day-ex-name{font-family:var(--font-c);font-size:13px;font-weight:700;letter-spacing:.4px;color:var(--text)}
+.day-ex-how{font-size:11px;line-height:1.55;color:var(--muted);margin-top:3px}
 .start-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px;background:var(--gold);color:var(--bg);border:none;border-radius:14px;font-family:var(--font-d);font-size:22px;letter-spacing:3px;cursor:pointer;box-shadow:0 4px 24px rgba(212,175,55,.3);transition:transform .15s,box-shadow .15s;margin-top:4px;flex-shrink:0}
 .start-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(212,175,55,.15)}
 
@@ -388,6 +400,7 @@ const DAYS = {
 
 let S = {
   day: 1, week: 1,
+  expandedDay: null,
   steps: [], idx: 0, currentSet: 1,
   phase: 'idle', // idle | active | resting | paused | complete
   timerSec: 0, timerMax: 0,
@@ -483,12 +496,35 @@ function cancelRun() { S.stepRunId++; clearTimers(); if (window.speechSynthesis)
 
 function updateWeekBadge() { $('week-badge').textContent = `WEEK ${S.week}`; }
 
+function getExerciseDisplayName(stepLike) {
+  const ex = stepLike.ex || (stepLike.exId ? EXDB[stepLike.exId] : null);
+  if (!ex) return '—';
+  let name = ex.name;
+  if (stepLike.type === 'locked') name = 'Side Plank (locked until week 3)';
+  if (stepLike.type === 'right-mod') name += ' · RIGHT +';
+  if (stepLike.type === 'warmup') name += ' · WARM-UP';
+  return name;
+}
+
+function getExerciseHowText(stepLike) {
+  if (stepLike.type === 'locked') {
+    return 'Locked until week 3. Bird Dog is used as the replacement movement until then.';
+  }
+  const ex = stepLike.ex || (stepLike.exId ? EXDB[stepLike.exId] : null);
+  if (!ex) return '';
+  if (stepLike.type === 'right-mod') return ex.rightMod || ex.cue || '';
+  return ex.cue || '';
+}
+
 function renderDayCards() {
   const grid = $('day-grid');
   grid.innerHTML = '';
   for (let d = 1; d <= 5; d++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'day-wrap' + (d === S.day ? ' selected' : '') + (S.expandedDay === d ? ' expanded' : '');
+
     const card = document.createElement('div');
-    card.className = 'day-card' + (d === S.day ? ' selected' : '');
+    card.className = 'day-card';
     card.innerHTML = `<span class="day-num">${d}</span><div class="day-info"><div class="day-label">DAY ${d}</div><div class="day-title">${DAYS[d].title}</div></div>`;
     card.addEventListener('click', () => {
       S.day = d;
@@ -496,7 +532,30 @@ function renderDayCards() {
       localStorage.setItem('sr_day', d);
       renderDayCards();
     });
-    grid.appendChild(card);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'day-toggle';
+    toggle.innerHTML = `<span>EXERCISES & HOW TO DO THEM</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+    toggle.addEventListener('click', () => {
+      S.expandedDay = S.expandedDay === d ? null : d;
+      renderDayCards();
+    });
+
+    const list = document.createElement('div');
+    list.className = 'day-ex-list';
+    const daySteps = buildSteps(d).filter(step => step.type !== 'warmup');
+    list.innerHTML = daySteps.map(step => `
+      <div class="day-ex-item">
+        <div class="day-ex-name">${getExerciseDisplayName(step)}</div>
+        <div class="day-ex-how">${getExerciseHowText(step)}</div>
+      </div>
+    `).join('');
+
+    wrap.appendChild(card);
+    wrap.appendChild(toggle);
+    wrap.appendChild(list);
+    grid.appendChild(wrap);
   }
 }
 
@@ -511,6 +570,50 @@ function buildFlow(step) {
 
   if (!isRight && ex.flow) return ex.flow;
   if (isRight && ex.rightFlow) return ex.rightFlow;
+
+  if (!isRight && step.exId === 6) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'timed', label: 'Shoulder-height stretch · Left side', sec: 30 },
+        { kind: 'timed', label: 'Shoulder-height stretch · Right side', sec: 30 },
+        { kind: 'timed', label: 'Above-shoulder stretch · Left side', sec: 30 },
+        { kind: 'timed', label: 'Above-shoulder stretch · Right side', sec: 30 },
+      ]
+    };
+  }
+
+  if (isRight && step.exId === 6) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'timed', label: 'Right-side extra stretch 1', sec: 30 },
+        { kind: 'timed', label: 'Right-side extra stretch 2', sec: 30 },
+      ]
+    };
+  }
+
+  if (!isRight && step.exId === 10) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'timed', label: 'Upper trap stretch · Left side', sec: 30 },
+        { kind: 'timed', label: 'Levator scapulae stretch · Left side', sec: 30 },
+        { kind: 'timed', label: 'Upper trap stretch · Right side', sec: 30 },
+        { kind: 'timed', label: 'Levator scapulae stretch · Right side', sec: 30 },
+      ]
+    };
+  }
+
+  if (isRight && step.exId === 10) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'timed', label: 'Extra left upper trap stretch', sec: 30 },
+        { kind: 'timed', label: 'Extra right levator scapulae stretch', sec: 30 },
+      ]
+    };
+  }
 
   if ((isRight ? ex.rightModTimeSec : ex.timeSec)) {
     return { kind: 'timed', sec: isRight ? ex.rightModTimeSec : ex.timeSec };
@@ -616,10 +719,18 @@ function startSession() {
   S.startTime = Date.now();
   S.phase = 'active';
   showView('session');
-  enterStep();
+  enterStep({ preDelayMs: 5000 });
 }
 
-async function enterStep() {
+function getStepIntro(step) {
+  if (!step) return '';
+  if (step.type === 'locked') return 'Side Plank is locked until week three. Bird Dog replacement is next.';
+  if (step.type === 'right-mod') return `Right side modification. ${step.ex.name}. ${step.ex.rightMod || ''}`;
+  if (step.type === 'warmup') return `Warm-up. ${step.ex.name}. ${step.ex.cue || ''}`;
+  return `${step.ex.name}. ${step.ex.cue || ''}`;
+}
+
+async function enterStep({ announce = true, preDelayMs = 0 } = {}) {
   if (S.transitionLock) return;
   S.transitionLock = true;
   try {
@@ -632,9 +743,13 @@ async function enterStep() {
 
     if (step.type === 'locked') return;
 
-    if (S.audioMode === 'voice') {
-      const intro = step.type === 'right-mod' ? `Right side. ${step.ex.name}` : step.ex.name;
-      await queueSpeak(intro, { cancel: true });
+    if (preDelayMs > 0) {
+      if (S.audioMode === 'voice' && announce) await queueSpeak(`Starting in ${Math.round(preDelayMs / 1000)} seconds.`, { cancel: true });
+      await wait(preDelayMs);
+    }
+
+    if (S.audioMode === 'voice' && announce) {
+      await queueSpeak(getStepIntro(step), { cancel: true });
       await wait(180);
       if (step.flow.kind === 'timedBreathing') await queueSpeak('Begin. Inhale then exhale smoothly.', { cancel: false });
       else if (step.exId === 1) await queueSpeak('Begin. Y then T then W.', { cancel: false });
@@ -750,12 +865,7 @@ function renderUpNext() {
   upcoming.forEach((s, i) => {
     const div = document.createElement('div');
     div.className = 'upnext-item' + (i === 0 ? ' upnext-first' : '');
-    const ex = s.ex || (s.exId ? EXDB[s.exId] : null);
-    let name = ex ? ex.name : '—';
-    if (s.type === 'locked') name = 'Side Plank (locked)';
-    if (s.type === 'right-mod') name += ' · RIGHT +';
-    if (s.type === 'warmup') name += ' · WARM-UP';
-    div.textContent = name;
+    div.textContent = getExerciseDisplayName(s);
     list.appendChild(div);
   });
 }
@@ -781,22 +891,24 @@ function runCurrentSet() {
 
 async function executeFlow(flow, runId) {
   if (!flow || flow.kind === 'manual') return;
-  if (flow.kind === 'timed') return runCountdown(flow.sec, runId);
+  const step = S.steps[S.idx];
+  const exName = step ? getExerciseDisplayName(step).replace(/ · WARM-UP| · RIGHT \+/, '') : 'Exercise';
+  if (flow.kind === 'timed') return runCountdown(flow.sec, runId, `${exName.toUpperCase()} · SEC`);
   if (flow.kind === 'timedBreathing') return runBreathing(flow.reps, flow.inhaleSec, flow.exhaleSec, runId);
-  if (flow.kind === 'reps') return runReps(flow.reps, 0, '', runId, !!flow.countAtStart);
-  if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, '', runId, !!flow.countAtStart);
+  if (flow.kind === 'reps') return runReps(flow.reps, 0, exName, runId, !!flow.countAtStart);
+  if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, exName, runId, !!flow.countAtStart);
   if (flow.kind === 'perSideTimed') {
-    await runCountdown(flow.sec, runId, 'LEFT SIDE');
+    await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · LEFT SIDE`);
     if (runId !== S.stepRunId) return;
     await wait(160);
-    await runCountdown(flow.sec, runId, 'RIGHT SIDE');
+    await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · RIGHT SIDE`);
     return;
   }
   if (flow.kind === 'perSideRepsHold') {
-    await runReps(flow.reps, flow.holdSec || 0, 'Left side', runId);
+    await runReps(flow.reps, flow.holdSec || 0, `${exName} · Left side`, runId);
     if (runId !== S.stepRunId) return;
     await wait(180);
-    await runReps(flow.reps, flow.holdSec || 0, 'Right side', runId);
+    await runReps(flow.reps, flow.holdSec || 0, `${exName} · Right side`, runId);
     return;
   }
   if (flow.kind === 'sequence') {
@@ -805,6 +917,10 @@ async function executeFlow(flow, runId) {
       if (block.kind === 'rest') {
         if (S.audioMode === 'voice' && block.label) await queueSpeak(block.label, { cancel: false });
         await runCountdown(block.sec, runId, block.label || 'REST');
+      } else if (block.kind === 'timed') {
+        const label = block.label || exName;
+        if (S.audioMode === 'voice' && label) await queueSpeak(`${label}.`, { cancel: false });
+        await runCountdown(block.sec, runId, label.toUpperCase());
       } else {
         const label = block.label || '';
         if (S.audioMode === 'voice' && label) {
@@ -816,7 +932,7 @@ async function executeFlow(flow, runId) {
           }
         }
 
-        await runReps(block.reps, block.holdSec || 0, label, runId);
+        await runReps(block.reps, block.holdSec || 0, label || exName, runId);
 
         if (S.audioMode === 'voice' && /^Right\s/i.test(label)) {
           await queueSpeak('Right side exception complete.', { cancel: false });
@@ -853,7 +969,7 @@ async function runReps(reps, holdSec, label, runId, countAtStart = false) {
   for (let rep = 1; rep <= reps; rep++) {
     if (runId !== S.stepRunId) return;
     $('timer-num').textContent = rep;
-    $('timer-unit').textContent = label ? `${label} · REPS` : 'REPS';
+    $('timer-unit').textContent = label ? `${label.toUpperCase()} · REP ${rep} OF ${reps}` : `REP ${rep} OF ${reps}`;
     setRing(1 - (rep - 1) / reps);
 
     if (countAtStart) {
@@ -1002,12 +1118,16 @@ async function advanceStepOnce() {
 
   // Rest only between main exercises
   if (shouldRestBetweenExercises(curr, next)) {
+    const nextName = getExerciseDisplayName(next).replace(/ · WARM-UP| · RIGHT \+/, '');
     S.phase = 'resting';
     S.pendingAdvanceAfterRest = true;
     renderExerciseRest(60);
-    await queueSpeak('Rest sixty seconds.', { cancel: true });
+    $('cue-text').textContent = `Rest. Breathe. Next exercise: ${nextName}.`;
+    if (S.audioMode === 'voice') {
+      await queueSpeak(`Next exercise: ${nextName}. Rest sixty seconds.`, { cancel: true });
+    }
     const runId = ++S.stepRunId;
-    await runCountdown(60, runId, 'SEC');
+    await runCountdown(60, runId, 'REST · SEC');
     if (runId !== S.stepRunId) { S.transitionLock = false; return; }
     S.pendingAdvanceAfterRest = false;
     $('session').classList.remove('resting');
@@ -1019,7 +1139,7 @@ async function advanceStepOnce() {
   S.idx += 1;
   S.transitionLock = false;
   if (S.idx >= S.steps.length) endSession();
-  else enterStep();
+  else enterStep({ announce: true });
 }
 
 function onDone() {
