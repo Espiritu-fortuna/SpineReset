@@ -415,6 +415,9 @@ let S = {
   transitionLock: false,
   speechChain: Promise.resolve(),
   speechGen: 0,
+  skipRequested: false,
+  currentRunResolver: null,
+  pendingResumeAction: null,
 };
 let audioCtx = null;
 let wakeLock = null;
@@ -507,14 +510,72 @@ async function acquireWakeLock() {
 function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; } }
 
 function showView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); $(id).classList.add('active'); }
+function safeWait(ms, runId) {
+  return new Promise(resolve => {
+    const started = Date.now();
+    let pausedAt = null;
+    function check() {
+      if (runId !== undefined && runId !== S.stepRunId) { resolve('cancelled'); return; }
+      if (S.skipRequested) { resolve('skipped'); return; }
+      if (S.phase === 'paused') {
+        if (pausedAt === null) pausedAt = Date.now();
+        setTimeout(check, 50);
+        return;
+      }
+      if (pausedAt !== null) {
+        const pausedFor = Date.now() - pausedAt;
+        pausedAt = null;
+        const elapsed = Date.now() - started - pausedFor;
+        if (elapsed >= ms) { resolve('ok'); return; }
+      }
+      const elapsed = Date.now() - started;
+      if (elapsed >= ms) { resolve('ok'); return; }
+      setTimeout(check, Math.min(50, ms - elapsed));
+    }
+    check();
+  });
+}
+function describeStep(step, { detailed = false } = {}) {
+  if (!step) return 'Session complete';
+  if (step.type === 'locked') return 'Side Plank locked';
+  const ex = step.ex;
+  if (!ex) return 'Next exercise';
+  if (step.type === 'warmup') return detailed && ex.sub ? `${ex.name} ${ex.sub}` : ex.name;
+  if (step.type === 'right-mod') return detailed ? `${ex.name}. Right side focus.` : `${ex.name} · RIGHT +`;
+  return ex.name;
+}
+function getSideLabel(step, side) {
+  const ex = step?.ex;
+  const base = side === 'left' ? 'LEFT SIDE' : 'RIGHT SIDE';
+  if (!ex) return base;
+  const id = step.exId;
+  if ([6,8,10,15].includes(id)) return `${base} STRETCH`;
+  if ([4,5,9,13].includes(id)) return `${base} REPS`;
+  return base;
+}
+function getSideAnnouncement(step, side) {
+  const ex = step?.ex;
+  const base = side === 'left' ? 'Left side' : 'Right side';
+  if (!ex) return base;
+  if (step.type === 'right-mod') return `${base}. ${ex.name}. Right side modification.`;
+  return `${base}. ${ex.name}.`;
+}
 function setRing(frac) { $('ring-arc').style.strokeDashoffset = CIRC * (1 - Math.min(1, Math.max(0, frac))); }
 function clearTimers() { if (S.interval) { clearInterval(S.interval); S.interval = null; } }
-function cancelRun() {
+function resolveCurrentRun(reason = 'cancelled') {
+  if (S.currentRunResolver) {
+    const resolver = S.currentRunResolver;
+    S.currentRunResolver = null;
+    resolver(reason);
+  }
+}
+function cancelRun(reason = 'cancelled') {
   S.stepRunId++;
   S.speechGen++;
   S.speechChain = Promise.resolve();
   clearTimers();
   if (window.speechSynthesis) speechSynthesis.cancel();
+  resolveCurrentRun(reason);
 }
 
 function updateWeekBadge() { $('week-badge').textContent = `WEEK ${S.week}`; }
@@ -734,6 +795,8 @@ function stopSessionToHome() {
 
 function startSession() {
   cancelRun();
+  S.skipRequested = false;
+  S.pendingResumeAction = null;
   S.steps = buildSteps(S.day);
   S.idx = 0;
   S.currentSet = 1;
@@ -768,15 +831,22 @@ async function enterStep({ announce = true, preDelayMs = 0 } = {}) {
 
     if (preDelayMs > 0) {
       if (S.audioMode === 'voice' && announce) await queueSpeak(`Starting in ${Math.round(preDelayMs / 1000)} seconds.`, { cancel: true });
-      await wait(preDelayMs);
+      const preDelay = await safeWait(preDelayMs, S.stepRunId);
+      if (preDelay !== 'ok') return;
     }
 
     if (S.audioMode === 'voice' && announce) {
-      await queueSpeak(getStepIntro(step), { cancel: true });
-      await wait(180);
+      const intro = getStepIntro(step) || (step.type === 'right-mod' ? `Right side. ${step.ex.name}` : describeStep(step, { detailed: true }));
+      await queueSpeak(intro, { cancel: true });
+      const introGap = step.type === 'warmup' ? 2000 : 5000;
+      const introDelay = await safeWait(introGap, S.stepRunId);
+      if (introDelay !== 'ok') return;
       if (step.flow.kind === 'timedBreathing') await queueSpeak('Begin. Inhale then exhale smoothly.', { cancel: false });
       else if (step.exId === 1) await queueSpeak('Begin. Y then T then W.', { cancel: false });
       else await queueSpeak('Begin.', { cancel: false });
+    } else {
+      const introDelay = await safeWait(step.type === 'warmup' ? 2000 : 5000, S.stepRunId);
+      if (introDelay !== 'ok') return;
     }
 
     runCurrentSet();
@@ -888,7 +958,7 @@ function renderUpNext() {
   upcoming.forEach((s, i) => {
     const div = document.createElement('div');
     div.className = 'upnext-item' + (i === 0 ? ' upnext-first' : '');
-    div.textContent = getExerciseDisplayName(s);
+    div.textContent = describeStep(s);
     list.appendChild(div);
   });
 }
@@ -903,17 +973,23 @@ function runCurrentSet() {
     return;
   }
   const runId = ++S.stepRunId;
+  S.skipRequested = false;
   S.phase = 'active';
   $('done-btn').disabled = true;
-  executeFlow(step.flow, runId).then(() => {
+  executeFlow(step.flow, runId).then(result => {
     if (runId !== S.stepRunId || S.phase === 'paused') return;
+    if (result === 'skipped') {
+      $('done-btn').disabled = false;
+      onSkip();
+      return;
+    }
     $('done-btn').disabled = false;
     completeCurrentSet('auto');
   }).catch(() => {});
 }
 
 async function executeFlow(flow, runId) {
-  if (!flow || flow.kind === 'manual') return;
+  if (!flow || flow.kind === 'manual') return 'ok';
   const step = S.steps[S.idx];
   const exName = step ? getExerciseDisplayName(step).replace(/ · WARM-UP| · RIGHT \+/, '') : 'Exercise';
   if (flow.kind === 'timed') return runCountdown(flow.sec, runId, `${exName.toUpperCase()} · SEC`);
@@ -921,29 +997,35 @@ async function executeFlow(flow, runId) {
   if (flow.kind === 'reps') return runReps(flow.reps, 0, exName, runId, !!flow.countAtStart);
   if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, exName, runId, !!flow.countAtStart);
   if (flow.kind === 'perSideTimed') {
-    await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · LEFT SIDE`);
-    if (runId !== S.stepRunId) return;
-    await wait(160);
-    await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · RIGHT SIDE`);
-    return;
+    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'left'), { cancel: false });
+    const left = await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · ${getSideLabel(S.steps[S.idx], 'left')}`);
+    if (left !== 'ok' || runId !== S.stepRunId) return left;
+    const gap = await safeWait(2000, runId);
+    if (gap !== 'ok') return gap;
+    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'right'), { cancel: false });
+    return await runCountdown(flow.sec, runId, `${exName.toUpperCase()} · ${getSideLabel(S.steps[S.idx], 'right')}`);
   }
   if (flow.kind === 'perSideRepsHold') {
-    await runReps(flow.reps, flow.holdSec || 0, `${exName} · Left side`, runId);
-    if (runId !== S.stepRunId) return;
-    await wait(180);
-    await runReps(flow.reps, flow.holdSec || 0, `${exName} · Right side`, runId);
-    return;
+    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'left'), { cancel: false });
+    const left = await runReps(flow.reps, flow.holdSec || 0, `${exName} · ${getSideLabel(S.steps[S.idx], 'left')}`, runId);
+    if (left !== 'ok' || runId !== S.stepRunId) return left;
+    const gap = await safeWait(2000, runId);
+    if (gap !== 'ok') return gap;
+    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'right'), { cancel: false });
+    return await runReps(flow.reps, flow.holdSec || 0, `${exName} · ${getSideLabel(S.steps[S.idx], 'right')}`, runId);
   }
   if (flow.kind === 'sequence') {
     for (const block of flow.blocks) {
       if (runId !== S.stepRunId) return;
       if (block.kind === 'rest') {
         if (S.audioMode === 'voice' && block.label) await queueSpeak(block.label, { cancel: false });
-        await runCountdown(block.sec, runId, block.label || 'REST');
+        const restResult = await runCountdown(block.sec, runId, block.label || 'REST');
+        if (restResult !== 'ok') return restResult;
       } else if (block.kind === 'timed') {
         const label = block.label || exName;
         if (S.audioMode === 'voice' && label) await queueSpeak(`${label}.`, { cancel: false });
-        await runCountdown(block.sec, runId, label.toUpperCase());
+        const timedResult = await runCountdown(block.sec, runId, label.toUpperCase());
+        if (timedResult !== 'ok') return timedResult;
       } else {
         const label = block.label || '';
         if (S.audioMode === 'voice' && label) {
@@ -955,7 +1037,8 @@ async function executeFlow(flow, runId) {
           }
         }
 
-        await runReps(block.reps, block.holdSec || 0, label || exName, runId);
+        const blockResult = await runReps(block.reps, block.holdSec || 0, label || exName, runId);
+        if (blockResult !== 'ok') return blockResult;
 
         if (S.audioMode === 'voice' && /^Right\s/i.test(label)) {
           await queueSpeak('Right side exception complete.', { cancel: false });
@@ -967,7 +1050,8 @@ async function executeFlow(flow, runId) {
 
 async function runBreathing(reps, inhaleSec, exhaleSec, runId) {
   for (let i = 1; i <= reps; i++) {
-    if (runId !== S.stepRunId) return;
+    if (runId !== S.stepRunId) return 'cancelled';
+    if (S.skipRequested) return 'skipped';
     $('timer-num').textContent = i;
     $('timer-unit').textContent = 'BREATH';
     setRing(1 - (i - 1) / reps);
@@ -975,22 +1059,26 @@ async function runBreathing(reps, inhaleSec, exhaleSec, runId) {
     if (S.audioMode === 'voice') await queueSpeak(`${i}. Inhale`, { cancel: false });
     else beep(420, 0.09);
 
-    await wait(inhaleSec * 1000);
-    if (runId !== S.stepRunId) return;
-    await wait(180);
+    const inhaleWait = await safeWait(inhaleSec * 1000, runId);
+    if (inhaleWait !== 'ok') return inhaleWait;
+    const inhaleGap = await safeWait(180, runId);
+    if (inhaleGap !== 'ok') return inhaleGap;
 
     if (S.audioMode === 'voice') await queueSpeak('Exhale', { cancel: false });
     else beep(320, 0.09);
 
-    await wait(exhaleSec * 1000);
-    if (runId !== S.stepRunId) return;
-    await wait(180);
+    const exhaleWait = await safeWait(exhaleSec * 1000, runId);
+    if (exhaleWait !== 'ok') return exhaleWait;
+    const exhaleGap = await safeWait(180, runId);
+    if (exhaleGap !== 'ok') return exhaleGap;
   }
+  return 'ok';
 }
 
 async function runReps(reps, holdSec, label, runId, countAtStart = false) {
   for (let rep = 1; rep <= reps; rep++) {
-    if (runId !== S.stepRunId) return;
+    if (runId !== S.stepRunId) return 'cancelled';
+    if (S.skipRequested) return 'skipped';
     $('timer-num').textContent = rep;
     $('timer-unit').textContent = label ? `${label.toUpperCase()} · REP ${rep} OF ${reps}` : `REP ${rep} OF ${reps}`;
     setRing(1 - (rep - 1) / reps);
@@ -998,17 +1086,20 @@ async function runReps(reps, holdSec, label, runId, countAtStart = false) {
     if (countAtStart) {
       if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
       else beep(620, 0.08);
-      await wait(170);
+      const countGap = await safeWait(170, runId);
+      if (countGap !== 'ok') return countGap;
     }
 
     for (let s = 0; s < holdSec; s++) {
       if (runId !== S.stepRunId) return;
       beep(holdSec - s === 1 ? 880 : 520, 0.08);
-      await wait(1000);
+      const holdWait = await safeWait(1000, runId);
+      if (holdWait !== 'ok') return holdWait;
     }
 
     if (!countAtStart) {
-      await wait(170);
+      const countGap = await safeWait(170, runId);
+      if (countGap !== 'ok') return countGap;
       if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
       else beep(620, 0.08);
     }
@@ -1026,8 +1117,15 @@ function runCountdown(sec, runId, label = 'SEC') {
     $('timer-unit').textContent = label;
     setRing(1);
 
+    S.currentRunResolver = reason => {
+      clearTimers();
+      resolve(reason);
+    };
+
     S.interval = setInterval(() => {
-      if (runId !== S.stepRunId) { clearTimers(); resolve(); return; }
+      if (runId !== S.stepRunId) { resolveCurrentRun('cancelled'); return; }
+      if (S.phase === 'paused') return;
+      if (S.skipRequested) { resolveCurrentRun('skipped'); return; }
       S.timerSec -= 1;
       $('timer-num').textContent = S.timerSec;
       setRing(S.timerMax ? S.timerSec / S.timerMax : 0);
@@ -1039,8 +1137,9 @@ function runCountdown(sec, runId, label = 'SEC') {
 
       if (S.timerSec <= 0) {
         clearTimers();
+        S.currentRunResolver = null;
         beep(880, 0.16);
-        resolve();
+        resolve('ok');
       }
     }, 1000);
   });
@@ -1136,7 +1235,8 @@ async function advanceStepOnce() {
   // Warmup -> main transition delay
   if (curr?.type === 'warmup' && next?.type === 'bilateral' && S.audioMode === 'voice') {
     await queueSpeak('Warm-up complete. Main exercises begin in five seconds.', { cancel: true });
-    await wait(5000);
+    const warmGap = await safeWait(5000, S.stepRunId);
+    if (warmGap !== 'ok') { S.transitionLock = false; return; }
   }
 
   // Rest only between main exercises
@@ -1150,8 +1250,8 @@ async function advanceStepOnce() {
       await queueSpeak(`Next exercise: ${nextName}. Rest sixty seconds.`, { cancel: true });
     }
     const runId = ++S.stepRunId;
-    await runCountdown(60, runId, 'REST · SEC');
-    if (runId !== S.stepRunId) { S.transitionLock = false; return; }
+    const restResult = await runCountdown(60, runId, 'REST · SEC');
+    if (restResult !== 'ok' || runId !== S.stepRunId) { S.transitionLock = false; return; }
     S.pendingAdvanceAfterRest = false;
     $('session').classList.remove('resting');
     S.phase = 'active';
@@ -1186,45 +1286,50 @@ function onDone() {
 
 function onSkip() {
   const step = S.steps[S.idx];
-  cancelRun();
+  S.skipRequested = true;
+  cancelRun('skipped');
   if (step && step.type === 'bilateral') S.doneExercises += 1;
   S.idx += 1;
+  S.skipRequested = false;
   if (S.idx >= S.steps.length) endSession();
   else enterStep();
 }
 
 function onPause() {
   if (S.phase === 'paused') {
-    S.phase = S.pausedPhase || 'active';
+    const resumePhase = S.pausedPhase || 'active';
+    const resumeAction = S.pendingResumeAction;
     S.pausedPhase = null;
+    S.pendingResumeAction = null;
+    S.phase = resumePhase;
     $('pause-btn').textContent = '⏸ PAUSE';
-    const step = S.steps[S.idx];
-    if (S.phase === 'resting') {
-      renderExerciseRest(S.pausedTimerSec || 1);
-      const pausedSec = S.pausedTimerSec || 1;
-      const runId = ++S.stepRunId;
-      runCountdown(pausedSec, runId, S.timerLabel || 'SEC').then(() => {
-        if (runId !== S.stepRunId) return;
-        S.pendingAdvanceAfterRest = false;
-        $('session').classList.remove('resting');
-        S.phase = 'active';
-        S.idx += 1;
-        if (S.idx >= S.steps.length) endSession();
-        else enterStep();
-      });
-      return;
-    }
-    if (!step || step.type === 'locked') return;
-    runCurrentSet();
+    if (typeof resumeAction === 'function') resumeAction();
     return;
   }
 
   if (S.phase !== 'active' && S.phase !== 'resting') return;
   S.pausedPhase = S.phase;
   S.pausedTimerSec = S.timerSec;
+  const step = S.steps[S.idx];
+  if (S.phase === 'resting') {
+    const remaining = S.timerSec;
+    S.pendingResumeAction = () => {
+      if (!step || step.type === 'locked') return;
+      startInterSetRest(remaining || 1, () => {
+        renderStep(step);
+        runCurrentSet();
+      });
+    };
+  } else {
+    S.pendingResumeAction = () => {
+      if (!step || step.type === 'locked') return;
+      renderStep(step);
+      runCurrentSet();
+    };
+  }
   S.phase = 'paused';
   $('pause-btn').textContent = '▶ RESUME';
-  cancelRun();
+  cancelRun('paused');
 }
 
 function endSession() {
