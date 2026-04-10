@@ -652,24 +652,64 @@ function buildFlow(step) {
   if (!isRight && ex.flow) return ex.flow;
   if (isRight && ex.rightFlow) return ex.rightFlow;
 
+  if (!isRight && step.exId === 3) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'action', label: 'Chin tuck hold set 1', reps: 10, holdSec: 10 },
+        { kind: 'timed', label: 'Right head rotation after set 1', sec: 30 },
+        { kind: 'action', label: 'Chin tuck hold set 2', reps: 10, holdSec: 10 },
+        { kind: 'timed', label: 'Right head rotation after set 2', sec: 30 },
+        { kind: 'action', label: 'Chin tuck hold set 3', reps: 10, holdSec: 10 },
+        { kind: 'timed', label: 'Right head rotation after set 3', sec: 30 },
+      ]
+    };
+  }
+
+  if (!isRight && step.exId === 4) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'action', label: 'Set 1 · Left side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Set 1 · Right side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Set 2 · Left side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Set 2 · Right side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Set 3 · Left side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Set 3 · Right side', reps: 10, holdSec: 2 },
+        { kind: 'action', label: 'Extra right-side set', reps: 10, holdSec: 2 },
+      ]
+    };
+  }
+
   if (!isRight && step.exId === 6) {
     return {
       kind: 'sequence',
       blocks: [
         { kind: 'timed', label: 'Shoulder-height stretch · Left side', sec: 30 },
         { kind: 'timed', label: 'Shoulder-height stretch · Right side', sec: 30 },
+        { kind: 'timed', label: 'Right-side extra stretch 1', sec: 30 },
         { kind: 'timed', label: 'Above-shoulder stretch · Left side', sec: 30 },
         { kind: 'timed', label: 'Above-shoulder stretch · Right side', sec: 30 },
+        { kind: 'timed', label: 'Right-side extra stretch 2', sec: 30 },
       ]
     };
   }
 
   if (isRight && step.exId === 6) {
+    return { kind: 'manual' };
+  }
+
+  if (!isRight && step.exId === 9) {
     return {
       kind: 'sequence',
       blocks: [
-        { kind: 'timed', label: 'Right-side extra stretch 1', sec: 30 },
-        { kind: 'timed', label: 'Right-side extra stretch 2', sec: 30 },
+        { kind: 'action', label: 'Set 1 · Left side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Set 1 · Right side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Set 2 · Left side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Set 2 · Right side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Set 3 · Left side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Set 3 · Right side', reps: 12, holdSec: 2 },
+        { kind: 'action', label: 'Extra right-side set', reps: 12, holdSec: 2 },
       ]
     };
   }
@@ -682,6 +722,25 @@ function buildFlow(step) {
         { kind: 'timed', label: 'Levator scapulae stretch · Left side', sec: 30 },
         { kind: 'timed', label: 'Upper trap stretch · Right side', sec: 30 },
         { kind: 'timed', label: 'Levator scapulae stretch · Right side', sec: 30 },
+      ]
+    };
+  }
+
+  if (!isRight && step.exId === 14) {
+    return { kind: 'repsHold', reps: 10, holdSec: 2 };
+  }
+
+  if (!isRight && step.exId === 15) {
+    return {
+      kind: 'sequence',
+      blocks: [
+        { kind: 'timed', label: 'Set 1 · Left side plank', sec: 25 },
+        { kind: 'timed', label: 'Set 1 · Right side plank', sec: 25 },
+        { kind: 'timed', label: 'Set 2 · Left side plank', sec: 25 },
+        { kind: 'timed', label: 'Set 2 · Right side plank', sec: 25 },
+        { kind: 'timed', label: 'Set 3 · Left side plank', sec: 25 },
+        { kind: 'timed', label: 'Set 3 · Right side plank', sec: 25 },
+        { kind: 'timed', label: 'Extra right-side plank set', sec: 25 },
       ]
     };
   }
@@ -743,7 +802,7 @@ function buildSteps(day) {
     }
     const ex = EXDB[exId];
     const main = { type:'bilateral', exId, ex }; main.flow = buildFlow(main); steps.push(main);
-    if (ex.rightMod) {
+    if (ex.rightMod && ![3,4,6,9,10,14,15].includes(exId)) {
       const right = { type:'right-mod', exId, ex }; right.flow = buildFlow(right); steps.push(right);
     }
   }
