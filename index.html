@@ -448,6 +448,7 @@ function countdownBeep(n) { const f = {5:523,4:659,3:784,2:988,1:1047}; beep(f[n
 function doneBeep() { beep(1047,0.15); setTimeout(()=>beep(1319,0.15),150); setTimeout(()=>beep(1568,0.25),300); }
 
 function queueSpeak(text, { cancel = false } = {}) {
+  if (!text) return Promise.resolve();
   const gen = S.speechGen;
   const run = async () => {
     if (gen !== S.speechGen) return;
@@ -458,14 +459,7 @@ function queueSpeak(text, { cancel = false } = {}) {
 }
 
 function speakNoWait(text) {
-  if (!window.speechSynthesis || S.audioMode !== 'voice') return;
-  if (speechSynthesis.speaking || speechSynthesis.pending) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = S.voiceRate;
-  u.pitch = S.voicePitch;
-  u.volume = 1;
-  if (S.selectedVoice) u.voice = S.selectedVoice;
-  speechSynthesis.speak(u);
+  return;
 }
 
 function speakPromise(text, cancel = false) {
@@ -1060,52 +1054,34 @@ async function executeFlow(flow, runId) {
   if (flow.kind === 'reps') return runReps(flow.reps, 0, exName, runId, !!flow.countAtStart);
   if (flow.kind === 'repsHold') return runReps(flow.reps, flow.holdSec || 0, exName, runId, !!flow.countAtStart);
   if (flow.kind === 'perSideTimed') {
-    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'left'), { cancel: false });
     const left = await runCountdown(flow.sec, runId, getSideLabel(S.steps[S.idx], 'left'));
     if (left !== 'ok' || runId !== S.stepRunId) return left;
     const gap = await safeWait(2000, runId);
     if (gap !== 'ok') return gap;
-    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'right'), { cancel: false });
     return await runCountdown(flow.sec, runId, getSideLabel(S.steps[S.idx], 'right'));
   }
   if (flow.kind === 'perSideRepsHold') {
-    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'left'), { cancel: false });
     const left = await runReps(flow.reps, flow.holdSec || 0, getSideLabel(S.steps[S.idx], 'left'), runId);
     if (left !== 'ok' || runId !== S.stepRunId) return left;
     const gap = await safeWait(2000, runId);
     if (gap !== 'ok') return gap;
-    if (S.audioMode === 'voice') await queueSpeak(getSideAnnouncement(S.steps[S.idx], 'right'), { cancel: false });
     return await runReps(flow.reps, flow.holdSec || 0, getSideLabel(S.steps[S.idx], 'right'), runId);
   }
   if (flow.kind === 'sequence') {
     for (const block of flow.blocks) {
       if (runId !== S.stepRunId) return;
       if (block.kind === 'rest') {
-        if (S.audioMode === 'voice' && block.label) await queueSpeak(block.label, { cancel: false });
         const restResult = await runCountdown(block.sec, runId, block.label || 'REST');
         if (restResult !== 'ok') return restResult;
       } else if (block.kind === 'timed') {
         const label = block.label || exName;
-        if (S.audioMode === 'voice' && label) await queueSpeak(`${label}.`, { cancel: false });
         const timedResult = await runCountdown(block.sec, runId, label.toUpperCase());
         if (timedResult !== 'ok') return timedResult;
       } else {
         const label = block.label || '';
-        if (S.audioMode === 'voice' && label) {
-          // Announce each Y/T/W segment and clearly mark right-side exception start/end
-          if (/^Right\s/i.test(label)) {
-            await queueSpeak(`Right side exception start. ${label}.`, { cancel: false });
-          } else {
-            await queueSpeak(`${label}.`, { cancel: false });
-          }
-        }
-
         const blockResult = await runReps(block.reps, block.holdSec || 0, label || exName, runId);
         if (blockResult !== 'ok') return blockResult;
 
-        if (S.audioMode === 'voice' && /^Right\s/i.test(label)) {
-          await queueSpeak('Right side exception complete.', { cancel: false });
-        }
       }
     }
   }
@@ -1119,16 +1095,14 @@ async function runBreathing(reps, inhaleSec, exhaleSec, runId) {
     $('timer-unit').textContent = 'BREATH';
     setRing(1 - (i - 1) / reps);
 
-    if (S.audioMode === 'voice') await queueSpeak(`${i}. Inhale`, { cancel: false });
-    else beep(420, 0.09);
+    beep(420, 0.09);
 
     const inhaleWait = await safeWait(inhaleSec * 1000, runId);
     if (inhaleWait !== 'ok') return inhaleWait;
     const inhaleGap = await safeWait(180, runId);
     if (inhaleGap !== 'ok') return inhaleGap;
 
-    if (S.audioMode === 'voice') await queueSpeak('Exhale', { cancel: false });
-    else beep(320, 0.09);
+    beep(320, 0.09);
 
     const exhaleWait = await safeWait(exhaleSec * 1000, runId);
     if (exhaleWait !== 'ok') return exhaleWait;
@@ -1147,8 +1121,7 @@ async function runReps(reps, holdSec, label, runId, countAtStart = false) {
     setRing(1 - (rep - 1) / reps);
 
     if (countAtStart) {
-      if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
-      else beep(620, 0.08);
+      beep(620, 0.08);
       const countGap = await safeWait(170, runId);
       if (countGap !== 'ok') return countGap;
     }
@@ -1163,8 +1136,7 @@ async function runReps(reps, holdSec, label, runId, countAtStart = false) {
     if (!countAtStart) {
       const countGap = await safeWait(170, runId);
       if (countGap !== 'ok') return countGap;
-      if (S.audioMode === 'voice') await queueSpeak(String(rep), { cancel: false });
-      else beep(620, 0.08);
+      beep(620, 0.08);
     }
     await wait(190);
   }
@@ -1195,7 +1167,6 @@ function runCountdown(sec, runId, label = 'SEC') {
 
       if (S.timerSec > 0 && S.timerSec <= 5) {
         countdownBeep(S.timerSec);
-        if (S.audioMode === 'voice') speakNoWait(String(S.timerSec));
       }
 
       if (S.timerSec <= 0) {
